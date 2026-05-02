@@ -80,7 +80,7 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 
-    DB_NAME = 'anime_bot.db'
+DB_NAME = 'anime_bot.db'
 
 class Database:
     def __init__(self):
