@@ -5124,12 +5124,19 @@ function loadPart(partNum) {
     const part = parts.find(p => p.part_number === partNum);
     
     if (part && part.file_id) {
-        // Telegram video ID dan URL olish
-        video.src = part.file_id;
+        // Telegram video ID dan URL olish - API orqali
+        video.src = `/api/video/${part.file_id}`;
+        video.load();
+        // Videoni avtomatik o'ynatishga urinish
+        video.play().catch(e => console.log('Auto-play error:', e));
+        showToast(`📺 ${partNum}-qism yuklanmoqda...`);
     } else {
-        // Demo video
+        // Demo video (agar video bazada bo'lmasa)
         video.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
+        video.load();
+        showToast(`⚠️ ${partNum}-qism uchun video topilmadi, demo ko'rsatilmoqda`);
     }
+}
     
     video.load();
     addToWatchHistory(currentMedia.id, partNum);
@@ -5484,6 +5491,7 @@ def run_mini_app_server():
 from aiohttp import web
 import json
 import traceback
+import aiohttp  # <-- YANGI QO'SHILDI!
 
 class MiniAppAPI:
     """Mini App uchun API endpointlar"""
@@ -5524,6 +5532,17 @@ class MiniAppAPI:
                     except:
                         comments = []
                     
+                    # Qismlarni olish
+                    parts = []
+                    try:
+                        async with db.conn.execute(
+                            "SELECT id, part_number, file_id, caption FROM parts WHERE media_id=? ORDER BY part_number", 
+                            (row['id'],)
+                        ) as pc:
+                            parts = await pc.fetchall()
+                    except:
+                        parts = []
+                    
                     media_list.append({
                         "id": row['id'],
                         "name": row['name'],
@@ -5536,6 +5555,7 @@ class MiniAppAPI:
                         "views": row['views'] or 0,
                         "likes": likes,
                         "comments": [{"username": c['username'] or "Anonim", "text": c['text'], "created_at": c['created_at']} for c in comments],
+                        "parts": [{"id": p['id'], "part_number": p['part_number'], "file_id": p['file_id'], "caption": p['caption']} for p in parts],
                         "is_vip": row['is_vip'] or 0,
                         "description": row['description'] or "",
                         "genre": row['genre'] or "",
@@ -5617,6 +5637,32 @@ class MiniAppAPI:
         except Exception as e:
             print(f"❌ API media count error: {e}")
             return web.json_response({"count": 0})
+    
+    # ================= YANGI QO'SHILGAN VIDEO ENDPOINT =================
+    @staticmethod
+    async def get_video(request):
+        """Video faylni qaytaradi"""
+        try:
+            file_id = request.match_info.get('file_id')
+            if not file_id:
+                return web.json_response({"error": "No file_id"}, status=400)
+            
+            # Telegram API orqali video linkini olish
+            BOT_TOKEN = os.getenv("BOT_TOKEN", "8331186676:AAFXLtBCy96UZ0VjVyL-KRUzzPzSLknjKlQ")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}") as resp:
+                    data = await resp.json()
+                    if data.get('ok'):
+                        file_path = data['result']['file_path']
+                        video_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+                        # Redirect orqali videoga yo'naltirish
+                        return web.Response(status=302, headers={'Location': video_url})
+            
+            return web.json_response({"error": "File not found"}, status=404)
+        except Exception as e:
+            print(f"❌ Video error: {e}")
+            return web.json_response({"error": str(e)}, status=500)
 
 
 # ================= YANGI: ROOT SAHIFANI KO'RSATISH =================
@@ -5638,6 +5684,9 @@ api_app.router.add_get('/api/media/count', MiniAppAPI.get_media_count)
 api_app.router.add_post('/api/register', MiniAppAPI.register_user)
 api_app.router.add_post('/api/like', MiniAppAPI.add_like)
 api_app.router.add_post('/api/comment', MiniAppAPI.add_comment)
+
+# ================= YANGI VIDEO ROUTE =================
+api_app.router.add_get('/api/video/{file_id}', MiniAppAPI.get_video)
 
 
 async def start_api_server():
