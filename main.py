@@ -328,7 +328,7 @@ async def _init_tables(self):
                                (datetime.now().isoformat(),))
         await self.conn.commit()
 
-    async def get_group_settings(self, group_id):
+async def get_group_settings(self, group_id):
     """Guruh sozlamalarini olish"""
     try:
         async with self.conn.execute(
