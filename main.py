@@ -48,12 +48,12 @@ AUTHOR_LINK = "https://t.me/AniComplexVIP"
 AUTHOR_USERNAME = "@AniComplexVIP"
 SUPPORT_LINK = "https://t.me/mirfayz_prime2"
 SUPPORT_USERNAME = "@mirfayz_prime2"
-VIP_PRICE = int(os.getenv("VIP_PRICE", "25000"))
+VIP_PRICE = int(os.getenv("VIP_PRICE", "VIP UZUR HOZIRCHA ISHLAMAYDI "))
 PHONE_NUMBER_1 = os.getenv("PHONE_NUMBER_1", "+998938138110")
 PHONE_NUMBER_2 = os.getenv("PHONE_NUMBER_2", "+998500741888")
-CARD_NUMBER = os.getenv("CARD_NUMBER", "8600 1234 5678 9012")
+CARD_NUMBER = os.getenv("CARD_NUMBER", "yoq")
 BOT_VERSION = "8.0.0"
-BOT_USERNAME = os.getenv("BOT_USERNAME", "AniComplex_bot")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "@AniComplex_Rasmiy_bot")
 
 # Mini App sozlamalari
 MINI_APP_PORT = int(os.getenv("MINI_APP_PORT", "8080"))
