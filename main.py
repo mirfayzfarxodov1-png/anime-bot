@@ -895,6 +895,37 @@ def get_welcome_text() -> str:
     text += "⬇️ <b>Quyidagi tugmalardan foydalaning:</b>"
     return text
 
+# ================= GURUH FUNKSIYALARI =================
+async def should_reply_in_group(message: Message) -> bool:
+    """Guruhda bot javob berishi kerakligini tekshiradi"""
+    chat_type = message.chat.type
+    
+    if chat_type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        return True
+    
+    settings = await db.get_group_settings(message.chat.id)
+    
+    if not settings.get("bot_enabled", 1):
+        return False
+    
+    bot_username = (await bot.get_me()).username
+    text = message.text or message.caption or ""
+    
+    if text.startswith('/'):
+        allowed_commands = ['/start', '/help', '/anime', '/search', '/code', '/watch', '/random']
+        for cmd in allowed_commands:
+            if text.startswith(cmd):
+                return True
+        return False
+    
+    if f"@{bot_username}" in text.lower():
+        return True
+    
+    if message.reply_to_message and message.reply_to_message.from_user.id == bot.id:
+        return True
+    
+    return False
+
 # ================= MENUS =================
 def get_main_menu(user_is_vip=False, is_group=False) -> InlineKeyboardMarkup:
     buttons = [
@@ -1045,14 +1076,25 @@ async def cmd_start(message: Message):
     # Guruhda start
     if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
         await db.add_group(message.chat.id, message.chat.title or "", message.chat.username or "", user_id)
-        try:
-            await bot.send_message(user_id, "🤖 <b>Guruhda bot ishlaydi!</b>\n\nAnime qidirish uchun:", reply_markup=get_main_menu(user_is_vip, is_group=True))
-        except:
-            pass
+        
+        member = await bot.get_chat_member(message.chat.id, user_id)
+        if member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            await message.answer(
+                "🤖 <b>AniComplex Guruh Boti</b>\n\n"
+                "✅ Bot guruhga muvaffaqiyatli qo'shildi!\n\n"
+                "📌 <b>Qanday ishlatiladi:</b>\n"
+                "• <code>/anime [nomi]</code> - Anime qidirish\n"
+                "• <code>/code [raqam]</code> - Kod orqali topish\n"
+                "• <code>/watch [kod]</code> - Tomosha qilish\n"
+                "• <code>/random</code> - Random anime\n"
+                "• <code>/help</code> - Yordam\n\n"
+                "⚠️ <b>Eslatma:</b> Bot faqat komandalarga javob beradi!\n"
+                "Botni @mention qilib ham ishlatishingiz mumkin."
+            )
         return
     
+    # Shaxsiy chat (davomi...)
     args = message.text.split()
-    # Referral
     if len(args) > 1 and args[1].startswith("ref_"):
         try:
             ref_id = int(args[1].split("_")[1])
@@ -1062,7 +1104,6 @@ async def cmd_start(message: Message):
         except:
             pass
     
-    # Deep link - code
     if len(args) > 1 and args[1].startswith("code_"):
         try:
             code = int(args[1].split("_")[1])
@@ -1073,7 +1114,6 @@ async def cmd_start(message: Message):
         except:
             pass
     
-    # Deep link - part
     if len(args) > 1 and args[1].startswith("part_"):
         try:
             part_id = int(args[1].split("_")[1])
@@ -1260,6 +1300,131 @@ async def genre_result(callback: CallbackQuery):
     builder.row(InlineKeyboardButton(text="🔙 Janrlarga qaytish", callback_data="search_by_genre"))
     await callback.message.edit_text(f"🎭 <b>#{genre}</b> da {len(results)} ta anime:", reply_markup=builder.as_markup())
     await callback.answer()
+
+# ================= GURUH UCHUN MAXSUS KOMANDALAR =================
+@dp.message(Command("anime"))
+async def anime_command(message: Message):
+    if not await should_reply_in_group(message):
+        return
+    
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer("❌ Iltimos, anime nomini kiriting:\n<code>/anime One Piece</code>")
+        return
+    
+    query = args[1].strip()
+    user_is_vip = await db.is_vip(message.from_user.id)
+    results = await db.search_media(query)
+    filtered = [m for m in results if not m["is_vip"] or user_is_vip]
+    
+    if not filtered:
+        await message.answer(f"❌ '{query}' bo'yicha topilmadi!")
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for m in filtered[:10]:
+        builder.button(text=f"{m['name']} [{m['code']}]", callback_data=f"view_media_{m['id']}")
+    builder.adjust(1)
+    
+    await message.answer(f"🔍 '{query}' bo'yicha {len(filtered)} ta natija:", reply_markup=builder.as_markup())
+
+@dp.message(Command("search"))
+async def search_command(message: Message):
+    await anime_command(message)
+
+@dp.message(Command("code"))
+async def code_command(message: Message):
+    if not await should_reply_in_group(message):
+        return
+    
+    args = message.text.split()
+    if len(args) < 2:
+        await message.answer("❌ Iltimos, anime kodini kiriting:\n<code>/code 104</code>")
+        return
+    
+    try:
+        code = int(args[1].strip())
+        media = await db.get_media_by_code(code)
+        if media:
+            await show_media_details(message, media["id"], await db.is_vip(message.from_user.id))
+        else:
+            await message.answer(f"❌ {code} kodli anime topilmadi!")
+    except ValueError:
+        await message.answer("❌ Kod faqat raqam bo'lishi kerak!")
+
+@dp.message(Command("watch"))
+async def watch_command(message: Message):
+    if not await should_reply_in_group(message):
+        return
+    
+    args = message.text.split()
+    if len(args) < 2:
+        await message.answer("❌ Iltimos, anime kodini kiriting:\n<code>/watch 104</code>")
+        return
+    
+    try:
+        code = int(args[1].strip())
+        media = await db.get_media_by_code(code)
+        if not media:
+            await message.answer(f"❌ {code} kodli anime topilmadi!")
+            return
+        
+        user_is_vip = await db.is_vip(message.from_user.id)
+        if media["is_vip"] and not user_is_vip:
+            await message.answer(f"🔒 <b>{media['name']}</b> VIP kontent!\n\n👑 VIP bo'lish uchun botga /start yuboring")
+            return
+        
+        parts = await db.get_parts(media["id"], user_is_vip)
+        if not parts:
+            await message.answer("📀 Hozircha qismlar mavjud emas!")
+            return
+        
+        builder = InlineKeyboardBuilder()
+        for part in parts[:20]:
+            builder.button(text=f"{part['part_number']}-qism", callback_data=f"watch_part_{part['id']}")
+        builder.adjust(5)
+        
+        await message.answer(f"📺 <b>{media['name']}</b>\n\nQismni tanlang:", reply_markup=builder.as_markup())
+    except ValueError:
+        await message.answer("❌ Kod faqat raqam bo'lishi kerak!")
+
+@dp.message(Command("random"))
+async def random_command(message: Message):
+    if not await should_reply_in_group(message):
+        return
+    
+    user_is_vip = await db.is_vip(message.from_user.id)
+    media = await db.get_random_media(user_is_vip)
+    
+    if not media:
+        await message.answer("❌ Hozircha media yo'q!")
+        return
+    
+    await show_media_details(message, media["id"], user_is_vip)
+
+@dp.message(Command("help"))
+async def help_command(message: Message):
+    if not await should_reply_in_group(message):
+        return
+    
+    chat_type = message.chat.type
+    if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        help_text = (
+            "🤖 <b>AniComplex Guruh Boti</b>\n\n"
+            "📌 <b>Qanday ishlatiladi:</b>\n\n"
+            "🔍 <b>Anime qidirish:</b>\n"
+            "   • <code>/anime [nomi]</code> - Nom bo'yicha qidirish\n"
+            "   • <code>/code [raqam]</code> - Kod orqali topish\n\n"
+            "📺 <b>Tomosha qilish:</b>\n"
+            "   • <code>/watch [kod]</code> - Animani ochish\n"
+            "   • <code>/random</code> - Random anime\n\n"
+            "💡 <b>Botni @mention qilib ham ishlatishingiz mumkin!</b>\n\n"
+            f"📢 <b>Kanal:</b> {MAIN_CHANNEL}\n"
+            f"🆘 <b>Yordam:</b> {SUPPORT_USERNAME}"
+        )
+        await message.answer(help_text)
+    else:
+        await message.answer(get_welcome_text(), reply_markup=get_main_menu(await db.is_vip(message.from_user.id)))
 
 # ================= MEDIA LIST HANDLERS =================
 @dp.callback_query(F.data == "ongoing_media")
@@ -3059,6 +3224,31 @@ async def cancel_command(message: Message, state: FSMContext):
     else:
         await message.answer("❌ Hech qanday amal davom etmayapti!")
 
+# ================= GURUHDA MATN XABARLARGA JAVOB BERISH =================
+@dp.message(F.text)
+async def handle_text_in_group(message: Message):
+    chat_type = message.chat.type
+    if chat_type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        return
+    
+    if not await should_reply_in_group(message):
+        return
+    
+    try:
+        text = message.text.strip()
+        if text.isdigit():
+            code = int(text)
+            media = await db.get_media_by_code(code)
+            if media:
+                await show_media_details(message, media["id"], await db.is_vip(message.from_user.id))
+                return
+    except:
+        pass
+
+@dp.callback_query()
+async def unknown_callback(callback: CallbackQuery):
+    await callback.answer("❌ Xato! Iltimos, qaytadan urinib ko'ring.")
+
 # ================= BACKGROUND TASKS =================
 async def vip_expiry_checker():
     while True:
@@ -3066,60 +3256,106 @@ async def vip_expiry_checker():
         await db.check_all_vip_expiry()
         logger.info("VIP expiry checked")
 
+# ================= GURUH ADMIN KOMANDALARI =================
+@dp.message(Command("enable_bot"))
+async def enable_bot(message: Message):
+    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        await message.answer("❌ Bu komanda faqat guruhlarda ishlaydi!")
+        return
+    
+    member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+    if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
+        await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+        return
+    
+    await db.update_group_settings(message.chat.id, bot_enabled=True)
+    await message.answer("✅ <b>Bot yoqildi!</b>\n\nBot endi komandalarga javob beradi.")
+
+@dp.message(Command("disable_bot"))
+async def disable_bot(message: Message):
+    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        await message.answer("❌ Bu komanda faqat guruhlarda ishlaydi!")
+        return
+    
+    member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+    if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
+        await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+        return
+    
+    await db.update_group_settings(message.chat.id, bot_enabled=False)
+    await message.answer("❌ <b>Bot o'chirildi!</b>\n\nBot endi javob bermaydi. Qayta yoqish: /enable_bot")
+
 # ================= MINI APP SERVER (SODDA VERSIYA) =================
 MINI_APP_HTML = '''<!DOCTYPE html>
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AniComplex | Anime Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AniComplex | Anime World</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }
-
-        /* CUSTOM SCROLLBAR */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #e74c3c, #f39c12);
-            border-radius: 10px;
-            transition: all 0.3s;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #c0392b, #e67e22);
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Poppins', sans-serif;
-            background: radial-gradient(circle at 20% 50%, #0a0a0f, #050508);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Poppins', sans-serif;
+            background: #0a0a0f;
             color: #fff;
-            margin: 0;
-            padding: 0;
             min-height: 100vh;
             overflow-x: hidden;
+            position: relative;
         }
 
-        /* ANIMATED BACKGROUND PARTICLES */
-        .particle-bg {
+        /* ========== BACKGROUND WITH USER IMAGE ========== */
+        .bg-layer {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: 0;
+        }
+
+        .bg-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('photo_2026-04-06_22-19-56.jpg');
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.3) blur(2px);
+            transform: scale(1.05);
+            animation: slowZoom 20s infinite alternate ease-in-out;
+        }
+
+        @keyframes slowZoom {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        .bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 30%, rgba(0,0,0,0.6), rgba(0,0,0,0.85));
+        }
+
+        /* ========== ANIMATED PARTICLES ========== */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
             pointer-events: none;
             overflow: hidden;
         }
@@ -3127,6 +3363,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .particle {
             position: absolute;
             border-radius: 50%;
+            background: rgba(255,255,255,0.4);
             animation: floatParticle linear infinite;
         }
 
@@ -3135,111 +3372,89 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 transform: translateY(100vh) scale(0);
                 opacity: 0;
             }
-            10% {
-                opacity: 0.5;
-            }
-            90% {
-                opacity: 0.5;
-            }
+            20% { opacity: 0.6; }
+            80% { opacity: 0.6; }
             100% {
                 transform: translateY(-10vh) scale(1);
                 opacity: 0;
             }
         }
 
-        /* GLOW EFFECTS */
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(231,76,60,0.3); }
-            50% { box-shadow: 0 0 40px rgba(231,76,60,0.6); }
+        /* ========== MAIN CONTAINER ========== */
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 550px;
+            margin: 0 auto;
+            padding: 15px 15px 80px;
+            min-height: 100vh;
         }
 
+        /* ========== ANIMATIONS ========== */
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(231,76,60,0.3), 0 0 5px rgba(231,76,60,0.2); }
+            50% { box-shadow: 0 0 30px rgba(231,76,60,0.6), 0 0 15px rgba(231,76,60,0.4); }
+        }
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
         }
-
         @keyframes shimmer {
             0% { background-position: -200% 0; }
             100% { background-position: 200% 0; }
         }
-
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-40px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-8px); }
         }
-
+        @keyframes heartBeat {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.4); }
+            50% { transform: scale(1.1); }
+            75% { transform: scale(1.2); }
+        }
         @keyframes rotate360 {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-
         @keyframes ripple {
-            0% { transform: scale(0); opacity: 0.5; }
-            100% { transform: scale(2); opacity: 0; }
+            0% { transform: scale(0); opacity: 0.6; }
+            100% { transform: scale(3); opacity: 0; }
         }
-
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
         }
 
-        @keyframes heartBeat {
-            0%, 100% { transform: scale(1); }
-            25% { transform: scale(1.3); }
-            50% { transform: scale(1.1); }
-            75% { transform: scale(1.2); }
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .container {
-            position: relative;
-            z-index: 1;
-            max-width: 550px;
-            margin: 0 auto;
-            padding: 15px 15px 80px 15px;
-        }
-
-        /* HEADER */
+        /* ========== HEADER ========== */
         .header {
-            background: linear-gradient(135deg, rgba(20,20,35,0.95), rgba(10,10,20,0.95));
-            backdrop-filter: blur(10px);
-            border-radius: 30px;
+            background: linear-gradient(135deg, rgba(20,20,35,0.85), rgba(10,10,20,0.9));
+            backdrop-filter: blur(15px);
+            border-radius: 35px;
             padding: 20px;
             margin-bottom: 20px;
-            border: 1px solid rgba(231,76,60,0.3);
-            animation: glow 3s infinite, slideUp 0.6s ease;
+            border: 1px solid rgba(231,76,60,0.4);
+            animation: glow 3s infinite, slideDown 0.8s ease;
             position: relative;
             overflow: hidden;
         }
@@ -3251,12 +3466,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             left: -50%;
             width: 200%;
             height: 200%;
-            background: linear-gradient(45deg, transparent, rgba(231,76,60,0.05), transparent);
-            animation: rotate360 10s linear infinite;
+            background: linear-gradient(45deg, transparent, rgba(231,76,60,0.08), transparent);
+            animation: rotate360 12s linear infinite;
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: 34px;
             font-weight: 800;
             background: linear-gradient(135deg, #e74c3c, #f39c12, #e74c3c);
             background-size: 200% auto;
@@ -3271,7 +3486,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .header p {
             color: rgba(255,255,255,0.7);
             font-size: 13px;
-            margin-top: 5px;
+            margin-top: 6px;
             position: relative;
             z-index: 1;
         }
@@ -3279,34 +3494,74 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .user-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             background: linear-gradient(135deg, #27ae60, #2ecc71);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 11px;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
             font-weight: 600;
-            margin-top: 10px;
-            animation: bounce 2s infinite;
+            margin-top: 12px;
+            animation: bounce 2s infinite, slideUp 0.6s ease;
         }
 
-        /* SEARCH BAR */
+        /* ========== AUTH FORM ========== */
+        .auth-card {
+            background: linear-gradient(135deg, rgba(25,25,40,0.9), rgba(15,15,25,0.95));
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 30px 25px;
+            margin: 20px 0;
+            border: 1px solid rgba(231,76,60,0.3);
+            animation: slideUp 0.6s ease, glow 2s infinite;
+            text-align: center;
+        }
+
+        .auth-card h2 {
+            margin-bottom: 25px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #e74c3c, #f39c12);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 14px 18px;
+            margin: 10px 0;
+            background: rgba(0,0,0,0.4);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 50px;
+            color: white;
+            font-size: 15px;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .auth-input:focus {
+            border-color: #e74c3c;
+            box-shadow: 0 0 15px rgba(231,76,60,0.3);
+            transform: scale(1.02);
+        }
+
+        /* ========== SEARCH BAR ========== */
         .search-container {
-            animation: slideUp 0.7s ease;
+            animation: slideDown 0.7s ease;
         }
 
         .search-bar {
             display: flex;
             gap: 10px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 50px;
-            padding: 5px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 60px;
+            padding: 6px;
             border: 1px solid rgba(231,76,60,0.3);
             transition: all 0.3s;
         }
 
         .search-bar:focus-within {
             border-color: #e74c3c;
-            box-shadow: 0 0 20px rgba(231,76,60,0.3);
+            box-shadow: 0 0 20px rgba(231,76,60,0.4);
             transform: scale(1.02);
         }
 
@@ -3321,14 +3576,32 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .search-bar input::placeholder {
-            color: rgba(255,255,255,0.4);
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* ========== BUTTONS ========== */
+        .btn-primary {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border: none;
+            border-radius: 60px;
+            padding: 12px 24px;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.96);
         }
 
         .search-btn {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
             border: none;
-            border-radius: 50px;
-            padding: 10px 20px;
+            border-radius: 60px;
+            padding: 12px 25px;
             color: white;
             cursor: pointer;
             transition: all 0.3s;
@@ -3338,13 +3611,13 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             transform: scale(0.95);
         }
 
-        /* TABS */
+        /* ========== TABS ========== */
         .tabs {
             display: flex;
-            gap: 8px;
-            margin: 20px 0;
+            gap: 10px;
+            margin: 25px 0;
             overflow-x: auto;
-            padding-bottom: 5px;
+            padding-bottom: 8px;
             animation: slideUp 0.8s ease;
         }
 
@@ -3353,13 +3626,13 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .tab {
-            padding: 10px 20px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            color: rgba(255,255,255,0.6);
+            padding: 10px 22px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 60px;
+            color: rgba(255,255,255,0.7);
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.3s;
@@ -3372,19 +3645,18 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             animation: pulse 2s infinite;
         }
 
-        /* MEDIA GRID */
+        /* ========== MEDIA GRID ========== */
         .media-grid {
             display: flex;
             flex-direction: column;
             gap: 15px;
             margin: 15px 0;
-            animation: slideUp 0.5s ease;
         }
 
         .media-card {
-            background: linear-gradient(135deg, rgba(25,25,40,0.9), rgba(15,15,25,0.9));
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(25,25,40,0.85), rgba(15,15,25,0.9));
+            backdrop-filter: blur(12px);
+            border-radius: 22px;
             overflow: hidden;
             border: 1px solid rgba(231,76,60,0.2);
             cursor: pointer;
@@ -3394,9 +3666,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .media-card:hover {
-            transform: translateX(5px);
-            border-color: rgba(231,76,60,0.5);
-            box-shadow: 0 5px 20px rgba(231,76,60,0.2);
+            transform: translateX(8px) scale(1.01);
+            border-color: rgba(231,76,60,0.6);
+            box-shadow: 0 8px 25px rgba(231,76,60,0.25);
         }
 
         .media-card:active {
@@ -3408,7 +3680,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             height: 150px;
             object-fit: cover;
             flex-shrink: 0;
-            transition: transform 0.3s;
+            transition: transform 0.4s;
         }
 
         .media-card:hover img {
@@ -3421,50 +3693,50 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .media-title {
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 700;
             margin-bottom: 6px;
         }
 
         .media-meta {
             font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            margin-bottom: 4px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 5px;
         }
 
         .rating-stars {
             color: #f39c12;
             font-size: 12px;
-            margin-top: 5px;
+            margin-top: 6px;
         }
 
-        /* PLAYER SECTION */
+        /* ========== PLAYER ========== */
         .player-section {
-            background: linear-gradient(135deg, rgba(20,20,35,0.95), rgba(10,10,20,0.95));
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 15px;
+            background: linear-gradient(135deg, rgba(20,20,35,0.9), rgba(10,10,20,0.95));
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 18px;
             animation: slideUp 0.5s ease;
         }
 
         .player-section video {
             width: 100%;
-            border-radius: 15px;
+            border-radius: 18px;
             background: #000;
         }
 
         .part-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin: 15px 0;
+            gap: 10px;
+            margin: 18px 0;
         }
 
         .part-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 8px 16px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 9px 18px;
             color: white;
             font-size: 13px;
             cursor: pointer;
@@ -3477,28 +3749,29 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .part-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.94);
         }
 
-        /* ACTION BUTTONS */
+        /* ========== ACTION BUTTONS ========== */
         .action-buttons {
             display: flex;
-            gap: 12px;
-            margin: 15px 0;
+            gap: 15px;
+            margin: 18px 0;
         }
 
         .action-btn {
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            padding: 10px 20px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 60px;
+            padding: 10px 22px;
             color: white;
             cursor: pointer;
             transition: all 0.3s;
             font-size: 14px;
+            font-weight: 500;
         }
 
         .action-btn:active {
@@ -3510,36 +3783,21 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             animation: heartBeat 0.5s ease;
         }
 
-        /* RIPPLE EFFECT */
-        .ripple-btn {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.5);
-            transform: scale(0);
-            animation: ripple 0.6s linear;
-            pointer-events: none;
-        }
-
-        /* COMMENTS SECTION */
+        /* ========== COMMENTS ========== */
         .comments-section {
-            background: rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 15px;
-            margin: 15px 0;
+            background: rgba(0,0,0,0.4);
+            border-radius: 22px;
+            padding: 18px;
+            margin: 18px 0;
             animation: slideUp 0.3s ease;
         }
 
         .comment {
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
+            background: rgba(0,0,0,0.35);
+            border-radius: 18px;
             padding: 12px;
             margin: 10px 0;
-            animation: slideIn 0.3s ease;
+            animation: slideInLeft 0.3s ease;
         }
 
         .comment-user {
@@ -3551,20 +3809,21 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .comment-text {
             font-size: 14px;
             margin-top: 5px;
+            color: rgba(255,255,255,0.9);
         }
 
         .comment-input {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 12px;
+            margin-top: 18px;
         }
 
         .comment-input input {
             flex: 1;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            padding: 12px 15px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 60px;
+            padding: 12px 18px;
             color: white;
             font-size: 14px;
             outline: none;
@@ -3578,47 +3837,43 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .comment-input button {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
             border: none;
-            border-radius: 50px;
-            padding: 12px 20px;
+            border-radius: 60px;
+            padding: 12px 22px;
             color: white;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
         }
 
-        .comment-input button:active {
-            transform: scale(0.95);
-        }
-
-        /* LOADING SKELETON */
+        /* ========== LOADING ========== */
         .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
-            border-radius: 10px;
+            border-radius: 18px;
         }
 
-        /* EMPTY STATE */
+        /* ========== EMPTY STATE ========== */
         .empty-state {
             text-align: center;
-            padding: 50px 20px;
-            animation: fadeInUp 0.5s ease;
+            padding: 60px 20px;
+            animation: fadeInUp 0.6s ease;
         }
 
         .empty-state .icon {
-            font-size: 60px;
-            margin-bottom: 15px;
+            font-size: 70px;
+            margin-bottom: 18px;
             animation: bounce 2s infinite;
         }
 
-        /* BOTTOM NAVIGATION */
+        /* ========== BOTTOM NAV ========== */
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             background: linear-gradient(135deg, rgba(15,15,25,0.98), rgba(10,10,20,0.98));
-            backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(231,76,60,0.3);
+            backdrop-filter: blur(15px);
+            border-top: 1px solid rgba(231,76,60,0.4);
             padding: 12px 20px;
             display: flex;
             justify-content: space-around;
@@ -3630,55 +3885,63 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
             background: none;
             border: none;
             color: rgba(255,255,255,0.5);
             font-size: 11px;
             cursor: pointer;
-            padding: 8px 15px;
+            padding: 8px 18px;
             border-radius: 50px;
             transition: all 0.3s;
         }
 
         .nav-item.active {
             color: #e74c3c;
-            background: rgba(231,76,60,0.1);
+            background: rgba(231,76,60,0.15);
         }
 
         .nav-item:active {
-            transform: scale(0.95);
+            transform: scale(0.94);
         }
 
         .nav-icon {
-            font-size: 22px;
+            font-size: 24px;
         }
 
-        /* HIDE CLASS */
-        .hidden {
-            display: none !important;
-        }
-
-        /* TOAST NOTIFICATION */
+        /* ========== TOAST ========== */
         .toast {
             position: fixed;
-            bottom: 80px;
+            bottom: 90px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             color: white;
-            padding: 12px 24px;
-            border-radius: 50px;
+            padding: 12px 28px;
+            border-radius: 60px;
             font-size: 14px;
             z-index: 200;
             animation: slideUp 0.3s ease;
-            border-left: 3px solid #e74c3c;
+            border-left: 4px solid #e74c3c;
+            white-space: nowrap;
+        }
+
+        /* ========== UTILITIES ========== */
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
-<div class="particle-bg" id="particles"></div>
+<!-- BACKGROUND WITH USER IMAGE -->
+<div class="bg-layer">
+    <div class="bg-image"></div>
+    <div class="bg-overlay"></div>
+</div>
+
+<!-- ANIMATED PARTICLES -->
+<div class="particles" id="particles"></div>
 
 <div class="container">
     <!-- HEADER -->
@@ -3689,12 +3952,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
     </div>
 
     <!-- AUTH SECTION -->
-    <div class="search-container" id="authSection">
-        <div style="background:rgba(255,255,255,0.05);border-radius:20px;padding:25px;margin:20px 0;text-align:center">
-            <h2 style="margin-bottom:20px">📝 Ro'yxatdan o'tish</h2>
-            <input type="text" id="firstNameInput" placeholder="👤 Ismingiz" style="width:100%;padding:12px;border-radius:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:white;margin:8px 0">
-            <input type="text" id="usernameInput" placeholder="📱 Telegram username" style="width:100%;padding:12px;border-radius:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:white;margin:8px 0">
-            <button class="search-btn" onclick="register()" style="width:100%;margin-top:15px">✅ Ro'yxatdan o'tish</button>
+    <div id="authSection">
+        <div class="auth-card">
+            <h2>📝 Ro'yxatdan o'tish</h2>
+            <input type="text" id="firstNameInput" class="auth-input" placeholder="👤 Ismingiz" autocomplete="off">
+            <input type="text" id="usernameInput" class="auth-input" placeholder="📱 Telegram username" autocomplete="off">
+            <button class="btn-primary" onclick="register()" style="margin-top: 15px;">✅ Ro'yxatdan o'tish</button>
         </div>
     </div>
 
@@ -3718,7 +3981,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 
         <div id="playerSection" class="player-section hidden">
             <video id="videoPlayer" controls></video>
-            <h3 id="playerTitle" style="margin:10px 0"></h3>
+            <h3 id="playerTitle" style="margin: 12px 0 8px; font-size: 18px;"></h3>
             
             <div class="action-buttons">
                 <button class="action-btn" id="likeBtn" onclick="toggleLike()">❤️ <span id="likeCount">0</span></button>
@@ -3734,11 +3997,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             </div>
             
             <div class="part-buttons" id="partButtons"></div>
-            <button class="search-btn" onclick="closePlayer()" style="width:100%;margin-top:10px">🔙 Orqaga</button>
+            <button class="btn-primary" onclick="closePlayer()" style="margin-top: 8px;">🔙 Orqaga</button>
         </div>
     </div>
 </div>
 
+<!-- BOTTOM NAVIGATION -->
 <div class="bottom-nav hidden" id="bottomNav">
     <button class="nav-item active" onclick="loadTab('all')"><span class="nav-icon">🏠</span> Bosh</button>
     <button class="nav-item" onclick="scrollToSearch()"><span class="nav-icon">🔍</span> Qidiruv</button>
@@ -3747,26 +4011,26 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 </div>
 
 <script>
-// ==================== TELEGRAM INIT ====================
+// ==================== TELEGRAM WEB APP INIT ====================
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 tg.enableClosingConfirmation();
 
-// ==================== PARTICLES ANIMATION ====================
+// ==================== PARTICLES ====================
 function createParticles() {
     const container = document.getElementById('particles');
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 60; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
-        const size = Math.random() * 4 + 2;
-        const duration = Math.random() * 15 + 8;
-        const delay = Math.random() * 10;
+        const size = Math.random() * 5 + 2;
+        const duration = Math.random() * 18 + 8;
+        const delay = Math.random() * 12;
         particle.style.cssText = `
             width: ${size}px;
             height: ${size}px;
             left: ${Math.random() * 100}%;
-            background: ${Math.random() > 0.7 ? '#e74c3c' : (Math.random() > 0.5 ? '#f39c12' : 'rgba(255,255,255,0.3)')};
+            background: ${Math.random() > 0.7 ? '#e74c3c' : (Math.random() > 0.5 ? '#f39c12' : 'rgba(255,255,255,0.5)')};
             animation-duration: ${duration}s;
             animation-delay: ${delay}s;
         `;
@@ -3775,7 +4039,7 @@ function createParticles() {
 }
 createParticles();
 
-// ==================== LOCAL STORAGE ====================
+// ==================== GLOBAL VARIABLES ====================
 let currentUser = null;
 let currentMedia = null;
 let currentPart = 1;
@@ -3801,7 +4065,8 @@ function register() {
     const username = document.getElementById('usernameInput').value.trim();
     
     if (!name) {
-        showToast("❌ Ismingizni kiriting!");
+        showToast("❌ Ismingizni kiriting!", true);
+        tg.HapticFeedback.notificationOccurred('error');
         return;
     }
     
@@ -3814,7 +4079,6 @@ function register() {
     
     localStorage.setItem('anicomplex_user', JSON.stringify(currentUser));
     
-    // API ga yuborish (bot bazasiga ulanish)
     fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3832,7 +4096,7 @@ function register() {
     loadMedia();
 }
 
-// ==================== SHOW TOAST ====================
+// ==================== TOAST ====================
 function showToast(message, isError = false) {
     const toast = document.createElement('div');
     toast.className = 'toast';
@@ -3840,20 +4104,7 @@ function showToast(message, isError = false) {
     if (isError) toast.style.borderLeftColor = '#e74c3c';
     else toast.style.borderLeftColor = '#2ecc71';
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2500);
-}
-
-// ==================== RIPPLE EFFECT ====================
-function addRipple(event, element) {
-    const rect = element.getBoundingClientRect();
-    const ripple = document.createElement('span');
-    ripple.className = 'ripple';
-    ripple.style.left = `${event.clientX - rect.left}px`;
-    ripple.style.top = `${event.clientY - rect.top}px`;
-    element.style.position = 'relative';
-    element.style.overflow = 'hidden';
-    element.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 600);
+    setTimeout(() => toast.remove(), 2800);
 }
 
 // ==================== MEDIA LOADING ====================
@@ -3861,7 +4112,7 @@ async function loadMedia() {
     const grid = document.getElementById('mediaGrid');
     grid.innerHTML = '';
     
-    // Show skeleton
+    // Skeleton
     for (let i = 0; i < 4; i++) {
         const skeleton = document.createElement('div');
         skeleton.className = 'media-card skeleton';
@@ -3869,15 +4120,14 @@ async function loadMedia() {
             <div style="width:110px;height:150px;"></div>
             <div style="padding:15px;flex:1;">
                 <div class="skeleton" style="height:18px;width:80%;margin-bottom:8px;"></div>
-                <div class="skeleton" style="height:12px;width:50%;margin-bottom:4px;"></div>
-                <div class="skeleton" style="height:12px;width:30%;"></div>
+                <div class="skeleton" style="height:12px;width:50%;margin-bottom:5px;"></div>
+                <div class="skeleton" style="height:12px;width:35%;"></div>
             </div>
         `;
         grid.appendChild(skeleton);
     }
     
     try {
-        // Bot API dan media olish
         const response = await fetch('/api/media');
         const data = await response.json();
         
@@ -3885,68 +4135,22 @@ async function loadMedia() {
             mediaData = data.data;
             renderMedia(mediaData);
         } else {
-            // Demo media (botga yuklanganda avtomatik keladi)
-            mediaData = [
-                {
-                    id: 4,
-                    name: "One Piece",
-                    code: 104,
-                    total_parts: 89,
-                    status: "ongoing",
-                    rating: 9.3,
-                    image_url: "https://i.imgur.com/6vXrQpN.jpg",
-                    views: 89321,
-                    likes: 1234,
-                    comments: []
-                },
-                {
-                    id: 5,
-                    name: "Attack on Titan",
-                    code: 105,
-                    total_parts: 87,
-                    status: "completed",
-                    rating: 9.1,
-                    image_url: "https://i.imgur.com/8KzVqNQ.jpg",
-                    views: 75432,
-                    likes: 987,
-                    comments: []
-                },
-                {
-                    id: 6,
-                    name: "Demon Slayer",
-                    code: 106,
-                    total_parts: 44,
-                    status: "ongoing",
-                    rating: 8.9,
-                    image_url: "https://i.imgur.com/3XwYqLp.jpg",
-                    views: 62109,
-                    likes: 876,
-                    comments: []
-                }
-            ];
-            renderMedia(mediaData);
+            showEmptyState();
         }
     } catch (error) {
-        // Demo data
-        mediaData = [
-            {
-                id: 4, name: "One Piece", code: 104, total_parts: 89,
-                status: "ongoing", rating: 9.3, image_url: "https://i.imgur.com/6vXrQpN.jpg",
-                views: 89321, likes: 1234, comments: []
-            },
-            {
-                id: 5, name: "Attack on Titan", code: 105, total_parts: 87,
-                status: "completed", rating: 9.1, image_url: "https://i.imgur.com/8KzVqNQ.jpg",
-                views: 75432, likes: 987, comments: []
-            },
-            {
-                id: 6, name: "Demon Slayer", code: 106, total_parts: 44,
-                status: "ongoing", rating: 8.9, image_url: "https://i.imgur.com/3XwYqLp.jpg",
-                views: 62109, likes: 876, comments: []
-            }
-        ];
-        renderMedia(mediaData);
+        showEmptyState();
     }
+}
+
+function showEmptyState() {
+    const grid = document.getElementById('mediaGrid');
+    grid.innerHTML = `
+        <div class="empty-state">
+            <div class="icon">🎬</div>
+            <p><b>Hozircha media mavjud emas</b></p>
+            <p style="margin-top: 10px;">Botga anime qo'shilganda<br>avtomatik ko'rinadi</p>
+        </div>
+    `;
 }
 
 function renderMedia(mediaList) {
@@ -3954,27 +4158,21 @@ function renderMedia(mediaList) {
     grid.innerHTML = '';
     
     if (!mediaList || mediaList.length === 0) {
-        grid.innerHTML = `
-            <div class="empty-state">
-                <div class="icon">📭</div>
-                <p><b>Hozircha media mavjud emas</b></p>
-                <p style="margin-top:8px;">Botga media qo'shilganda avtomatik ko'rinadi</p>
-            </div>
-        `;
+        showEmptyState();
         return;
     }
     
-    mediaList.forEach((media, index) => {
+    mediaList.forEach((media, idx) => {
         const card = document.createElement('div');
         card.className = 'media-card';
-        card.style.animationDelay = `${index * 0.05}s`;
+        card.style.animationDelay = `${idx * 0.05}s`;
         card.onclick = () => openPlayer(media);
         
         const stars = media.rating ? '⭐'.repeat(Math.min(5, Math.floor(media.rating / 2))) : '';
-        const imageUrl = media.image_url || 'https://i.imgur.com/anime_default.jpg';
+        const imgUrl = media.image_url || 'https://i.imgur.com/anime_default.jpg';
         
         card.innerHTML = `
-            <img src="${imageUrl}" alt="${media.name}" onerror="this.src='https://i.imgur.com/anime_default.jpg'">
+            <img src="${imgUrl}" alt="${media.name}" onerror="this.src='https://i.imgur.com/anime_default.jpg'">
             <div class="media-info">
                 <div class="media-title">🎬 ${media.name}</div>
                 <div class="media-meta">📀 ${media.total_parts || 0} qism • ${media.status === 'completed' ? '✅ Tugallangan' : '🟢 Davom etmoqda'}</div>
@@ -4005,7 +4203,7 @@ function searchAnime() {
     
     const filtered = mediaData.filter(m => m.name.toLowerCase().includes(query));
     renderMedia(filtered);
-    if (filtered.length === 0) showToast("❌ Topilmadi!", true);
+    if (filtered.length === 0) showToast("❌ Hech narsa topilmadi!", true);
 }
 
 function scrollToSearch() {
@@ -4067,14 +4265,13 @@ function toggleLike() {
     isLiked = !isLiked;
     const btn = document.getElementById('likeBtn');
     
-    // Animation
-    btn.style.animation = 'heartBeat 0.5s ease';
-    setTimeout(() => btn.style.animation = '', 500);
+    btn.style.animation = 'heartBeat 0.4s ease';
+    setTimeout(() => btn.style.animation = '', 400);
     
     btn.classList.toggle('liked', isLiked);
-    const count = document.getElementById('likeCount');
-    const newCount = parseInt(count.textContent) + (isLiked ? 1 : -1);
-    count.textContent = newCount;
+    const countSpan = document.getElementById('likeCount');
+    let newCount = parseInt(countSpan.textContent) + (isLiked ? 1 : -1);
+    countSpan.textContent = newCount;
     
     if (currentMedia) {
         currentMedia.likes = (currentMedia.likes || 0) + (isLiked ? 1 : -1);
@@ -4087,7 +4284,7 @@ function toggleLike() {
     }).catch(() => {});
     
     tg.HapticFeedback.notificationOccurred('success');
-    if (isLiked) showToast("❤️ Layk bosildi!");
+    if (isLiked) showToast("❤️ Layk qo'shildi!");
 }
 
 // ==================== COMMENTS ====================
@@ -4100,11 +4297,11 @@ function loadComments() {
     const list = document.getElementById('commentsList');
     const comments = currentMedia?.comments || [];
     list.innerHTML = comments.length === 0
-        ? '<p style="color:#888;text-align:center;padding:15px;">💬 Hozircha izohlar yo\'q</p>'
+        ? '<p style="color:#aaa;text-align:center;padding:18px;">💬 Hozircha izohlar yo\'q</p>'
         : comments.map(c => `
             <div class="comment">
-                <div class="comment-user">👤 ${c.username}</div>
-                <div class="comment-text">${c.text}</div>
+                <div class="comment-user">👤 ${escapeHtml(c.username)}</div>
+                <div class="comment-text">${escapeHtml(c.text)}</div>
             </div>
         `).join('');
 }
@@ -4125,7 +4322,6 @@ function addComment() {
     loadComments();
     input.value = '';
     
-    // Animation
     const commentDiv = document.querySelector('.comments-section');
     commentDiv.style.animation = 'none';
     setTimeout(() => commentDiv.style.animation = 'slideUp 0.3s ease', 10);
@@ -4140,6 +4336,16 @@ function addComment() {
     showToast("✅ Izoh qo'shildi!");
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 // ==================== UTILS ====================
 function formatViews(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -4147,8 +4353,7 @@ function formatViews(num) {
     return num.toString();
 }
 
-// ==================== PERIODIC REFRESH ====================
-// Botga yangi anime yuklanganda avtomatik yangilanish
+// ==================== AUTO REFRESH ====================
 setInterval(() => {
     if (document.getElementById('mediaGrid') && !document.getElementById('mediaGrid').classList.contains('hidden')) {
         loadMedia();
