@@ -71,3 +71,3454 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
+
+# ================= DATABASE =================
+DB_NAME = 'anime_bot.db'
+
+class Database:
+    def __init__(self):
+        self.conn = None
+    
+    async def connect(self):
+        self.conn = await aiosqlite.connect(DB_NAME)
+        self.conn.row_factory = aiosqlite.Row
+        await self._init_tables()
+        await self._migrate_tables()
+        logger.info("✅ Database connected")
+    
+    async def _init_tables(self):
+        # Media table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code INTEGER UNIQUE NOT NULL,
+            name TEXT UNIQUE NOT NULL,
+            genre TEXT, status TEXT DEFAULT 'ongoing',
+            total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
+            rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
+            is_vip INTEGER DEFAULT 0, image_url TEXT,
+            description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
+            release_year INTEGER, created_at TEXT, updated_at TEXT,
+            post_message_id INTEGER, post_channel TEXT
+        )''')
+        
+        # Parts table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            media_id INTEGER, part_number INTEGER,
+            file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
+            duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
+            views INTEGER DEFAULT 0, created_at TEXT,
+            post_message_id INTEGER, post_channel TEXT,
+            FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
+        )''')
+        
+        # Users table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY, username TEXT,
+            first_name TEXT, last_name TEXT, phone TEXT,
+            is_vip INTEGER DEFAULT 0, vip_expiry TEXT,
+            is_blocked INTEGER DEFAULT 0, language TEXT DEFAULT 'uz',
+            registered_at TEXT, last_active TEXT, total_views INTEGER DEFAULT 0,
+            is_subscribed INTEGER DEFAULT 0
+        )''')
+        
+        # Admins table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS admins (user_id INTEGER PRIMARY KEY, added_by INTEGER, added_at TEXT, permissions TEXT DEFAULT 'all')''')
+        
+        # Favorites table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS favorites (user_id INTEGER, media_id INTEGER, added_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # Notifications table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS notifications (user_id INTEGER, media_id INTEGER, media_name TEXT, is_active INTEGER DEFAULT 1, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # VIP requests table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS vip_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, phone_number TEXT, amount INTEGER, payment_proof TEXT, status TEXT DEFAULT 'pending', created_at TEXT, processed_at TEXT, processed_by INTEGER)''')
+        
+        # Forced channels table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS forced_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel_username TEXT UNIQUE, channel_link TEXT, is_active INTEGER DEFAULT 1, added_at TEXT, added_by INTEGER)''')
+        
+        # Ratings table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS ratings (user_id INTEGER, media_id INTEGER, rating INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # Watch history table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS watch_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, part_number INTEGER, watched_at TEXT)''')
+        
+        # Referrals table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS referrals (id INTEGER PRIMARY KEY AUTOINCREMENT, referrer_id INTEGER, referred_id INTEGER, is_rewarded INTEGER DEFAULT 0, created_at TEXT)''')
+        
+        # Daily stats table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS daily_stats (date TEXT PRIMARY KEY, new_users INTEGER DEFAULT 0, active_users INTEGER DEFAULT 0, total_views INTEGER DEFAULT 0, new_media INTEGER DEFAULT 0)''')
+        
+        # Reports table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', created_at TEXT)''')
+        
+        # Multi part sessions table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS multi_part_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, media_name TEXT, parts_data TEXT, total_parts INTEGER DEFAULT 0, created_at TEXT)''')
+        
+        # Suggestions table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, suggestion TEXT, status TEXT DEFAULT 'pending', created_at TEXT, responded_at TEXT)''')
+        
+        # Groups table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, title TEXT, username TEXT, added_by INTEGER, added_at TEXT, is_active INTEGER DEFAULT 1)''')
+        
+        # Likes table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, media_id INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # Comments table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, username TEXT, text TEXT, created_at TEXT)''')
+        
+        # Mini app users table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
+        
+        await self.conn.commit()
+        
+        # Create indexes
+        try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
+        except: pass
+        try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
+        except: pass
+        try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
+        except: pass
+        
+        await self.conn.commit()
+        
+        # Default admins
+        now = datetime.now().isoformat()
+        for admin_id in ADMINS:
+            await self.conn.execute("INSERT OR IGNORE INTO admins (user_id, added_by, added_at) VALUES (?,?,?)", (admin_id, admin_id, now))
+        await self.conn.commit()
+        
+        # Daily stats
+        today = datetime.now().strftime("%Y-%m-%d")
+        await self.conn.execute("INSERT OR IGNORE INTO daily_stats (date) VALUES (?)", (today,))
+        await self.conn.commit()
+        
+        logger.info("✅ All tables created")
+    
+    async def _migrate_tables(self):
+        """Yo'q ustunlarni qo'shish"""
+        migrations = {
+            'media': {'rating': 'REAL DEFAULT 0', 'rating_count': 'INTEGER DEFAULT 0', 'release_year': 'INTEGER', 'post_message_id': 'INTEGER', 'post_channel': 'TEXT', 'updated_at': 'TEXT'},
+            'parts': {'duration': 'INTEGER DEFAULT 0', 'file_size': 'INTEGER DEFAULT 0', 'post_message_id': 'INTEGER', 'post_channel': 'TEXT', 'views': 'INTEGER DEFAULT 0'},
+            'users': {'is_vip': 'INTEGER DEFAULT 0', 'vip_expiry': 'TEXT', 'total_views': 'INTEGER DEFAULT 0', 'phone': 'TEXT', 'is_blocked': 'INTEGER DEFAULT 0', 'is_subscribed': 'INTEGER DEFAULT 0'},
+            'vip_requests': {'processed_at': 'TEXT', 'processed_by': 'INTEGER'},
+            'referrals': {'is_rewarded': 'INTEGER DEFAULT 0'},
+            'forced_channels': {'added_by': 'INTEGER', 'added_at': 'TEXT'},
+            'suggestions': {'responded_at': 'TEXT'},
+            'multi_part_sessions': {'user_id': 'INTEGER', 'media_id': 'INTEGER', 'media_name': 'TEXT', 'parts_data': 'TEXT', 'total_parts': 'INTEGER DEFAULT 0', 'created_at': 'TEXT'},
+            'groups': {'title': 'TEXT', 'username': 'TEXT', 'added_by': 'INTEGER', 'added_at': 'TEXT', 'is_active': 'INTEGER DEFAULT 1'},
+        }
+        for table, cols in migrations.items():
+            try:
+                async with self.conn.execute(f"PRAGMA table_info({table})") as c:
+                    existing = [row[1] for row in await c.fetchall()]
+                for col, col_type in cols.items():
+                    if col not in existing:
+                        await self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
+                        logger.info(f"✅ {table}.{col} qo'shildi")
+            except: pass
+        await self.conn.commit()
+        logger.info("✅ Database migration tugadi")
+
+db = Database()
+
+    # ================= USER METHODS =================
+    async def add_user(self, uid, username="", first_name="", last_name=""):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT OR IGNORE INTO users (id,username,first_name,last_name,registered_at,last_active) VALUES(?,?,?,?,?,?)", (uid, username, first_name, last_name, now, now))
+        await self.conn.commit()
+        today = datetime.now().strftime("%Y-%m-%d")
+        await self.conn.execute("UPDATE daily_stats SET new_users=new_users+1 WHERE date=?", (today,))
+        await self.conn.commit()
+    
+    async def update_activity(self, uid):
+        await self.conn.execute("UPDATE users SET last_active=? WHERE id=?", (datetime.now().isoformat(), uid))
+        await self.conn.commit()
+    
+    async def get_user(self, uid):
+        async with self.conn.execute("SELECT * FROM users WHERE id=?", (uid,)) as c: return await c.fetchone()
+    
+    async def get_all_users(self, only_active=False):
+        q = "SELECT id FROM users WHERE is_blocked=0" if only_active else "SELECT id FROM users"
+        async with self.conn.execute(q) as c: return await c.fetchall()
+    
+    async def get_user_count(self):
+        async with self.conn.execute("SELECT COUNT(*) FROM users WHERE is_blocked=0") as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    # ================= ADMIN METHODS =================
+    async def is_admin(self, uid):
+        async with self.conn.execute("SELECT 1 FROM admins WHERE user_id=?", (uid,)) as c:
+            return await c.fetchone() is not None or uid in ADMINS
+    
+    async def is_owner(self, uid): return uid in ADMINS
+    
+    async def add_admin(self, uid, added_by):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT OR IGNORE INTO admins (user_id,added_by,added_at) VALUES(?,?,?)", (uid, added_by, now))
+        await self.conn.commit()
+    
+    async def remove_admin(self, uid):
+        if uid not in ADMINS:
+            await self.conn.execute("DELETE FROM admins WHERE user_id=?", (uid,))
+            await self.conn.commit(); return True
+        return False
+    
+    async def get_admin_count(self):
+        async with self.conn.execute("SELECT COUNT(*) FROM admins") as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    # ================= VIP METHODS =================
+    async def is_vip(self, uid):
+        async with self.conn.execute("SELECT is_vip,vip_expiry FROM users WHERE id=?", (uid,)) as c:
+            row = await c.fetchone()
+            if not row or row["is_vip"] != 1: return False
+            if row["vip_expiry"]:
+                try:
+                    if datetime.fromisoformat(row["vip_expiry"]) > datetime.now(): return True
+                    await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE id=?", (uid,))
+                    await self.conn.commit()
+                except: return True
+            return True
+    
+    async def set_vip(self, uid, days=30):
+        expiry = (datetime.now() + timedelta(days=days)).isoformat()
+        await self.conn.execute("UPDATE users SET is_vip=1,vip_expiry=? WHERE id=?", (expiry, uid))
+        await self.conn.commit()
+    
+    async def remove_vip(self, uid):
+        await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE id=?", (uid,))
+        await self.conn.commit()
+    
+    async def get_vip_count(self):
+        async with self.conn.execute("SELECT COUNT(*) FROM users WHERE is_vip=1") as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    async def check_all_vip_expiry(self):
+        await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE is_vip=1 AND vip_expiry<?", (datetime.now().isoformat(),))
+        await self.conn.commit()
+    
+    async def add_vip_request(self, uid, phone, amount, proof=""):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT INTO vip_requests (user_id,phone_number,amount,payment_proof,status,created_at) VALUES(?,?,?,?,'pending',?)", (uid, phone, amount, proof, now))
+        await self.conn.commit(); return await self.get_last_insert_id()
+    
+    async def get_vip_requests(self, status="pending"):
+        async with self.conn.execute("SELECT * FROM vip_requests WHERE status=? ORDER BY created_at DESC", (status,)) as c: return await c.fetchall()
+    
+    async def get_vip_request(self, rid):
+        async with self.conn.execute("SELECT * FROM vip_requests WHERE id=?", (rid,)) as c: return await c.fetchone()
+    
+    async def update_vip_request(self, rid, status, processed_by):
+        now = datetime.now().isoformat()
+        await self.conn.execute("UPDATE vip_requests SET status=?,processed_at=?,processed_by=? WHERE id=?", (status, now, processed_by, rid))
+        await self.conn.commit()
+    
+    async def check_subscription(self, uid):
+        try:
+            member = await bot.get_chat_member(MAIN_CHANNEL, uid)
+            is_sub = member.status not in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]
+            await self.conn.execute("UPDATE users SET is_subscribed=? WHERE id=?", (1 if is_sub else 0, uid))
+            await self.conn.commit(); return is_sub
+        except: return False
+    
+    # ================= MEDIA METHODS =================
+    async def add_media(self, code, name, genre, image_url="", description="", voice="", quality="720p", release_year=None, is_vip=False):
+        if await self.fetch_one("SELECT id FROM media WHERE code=?", (code,)): return False, "Bu kod mavjud!"
+        if await self.fetch_one("SELECT id FROM media WHERE name=?", (name,)): return False, "Bu nom mavjud!"
+        now = datetime.now().isoformat()
+        await self.conn.execute('''INSERT INTO media (code,name,genre,image_url,description,voice,quality,release_year,is_vip,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)''', (code, name, genre, image_url, description, voice, quality, release_year, 1 if is_vip else 0, now, now))
+        await self.conn.commit()
+        today = datetime.now().strftime("%Y-%m-%d")
+        await self.conn.execute("UPDATE daily_stats SET new_media=new_media+1 WHERE date=?", (today,))
+        await self.conn.commit()
+        return True, await self.get_last_insert_id()
+    
+    async def get_media_by_code(self, code):
+        async with self.conn.execute("SELECT * FROM media WHERE code=?", (code,)) as c: return await c.fetchone()
+    
+    async def get_media_by_id(self, mid):
+        async with self.conn.execute("SELECT * FROM media WHERE id=?", (mid,)) as c: return await c.fetchone()
+    
+    async def search_media(self, query):
+        async with self.conn.execute("SELECT * FROM media WHERE name LIKE ? ORDER BY name", (f"%{query}%",)) as c: return await c.fetchall()
+    
+    async def get_all_media(self, user_is_vip=False):
+        q = "SELECT id,name,code,total_parts,status,is_vip,views,rating,image_url FROM media"
+        if not user_is_vip: q += " WHERE is_vip=0"
+        async with self.conn.execute(q + " ORDER BY name") as c: return await c.fetchall()
+    
+    async def get_ongoing_media(self, user_is_vip=False):
+        q = "SELECT id,name,code,total_parts,views,rating FROM media WHERE status='ongoing'"
+        if not user_is_vip: q += " AND is_vip=0"
+        async with self.conn.execute(q + " ORDER BY name") as c: return await c.fetchall()
+    
+    async def get_completed_media(self, user_is_vip=False):
+        q = "SELECT id,name,code,total_parts,views,rating FROM media WHERE status='completed'"
+        if not user_is_vip: q += " AND is_vip=0"
+        async with self.conn.execute(q + " ORDER BY name") as c: return await c.fetchall()
+    
+    async def get_most_viewed(self, limit=10, user_is_vip=False):
+        q = "SELECT id,name,code,views,is_vip,rating,image_url FROM media"
+        if not user_is_vip: q += " WHERE is_vip=0"
+        async with self.conn.execute(q + " ORDER BY views DESC LIMIT ?", (limit,)) as c: return await c.fetchall()
+    
+    async def get_highest_rated(self, limit=10, user_is_vip=False):
+        q = "SELECT id,name,code,rating,rating_count,is_vip,image_url FROM media WHERE rating_count>0"
+        if not user_is_vip: q += " AND is_vip=0"
+        async with self.conn.execute(q + " ORDER BY rating DESC LIMIT ?", (limit,)) as c: return await c.fetchall()
+    
+    async def get_recent_media(self, limit=10, user_is_vip=False):
+        q = "SELECT id,name,code,created_at,is_vip,image_url FROM media"
+        if not user_is_vip: q += " WHERE is_vip=0"
+        async with self.conn.execute(q + " ORDER BY created_at DESC LIMIT ?", (limit,)) as c: return await c.fetchall()
+    
+    async def get_random_media(self, user_is_vip=False):
+        q = "SELECT id,name,code,image_url FROM media"
+        if not user_is_vip: q += " WHERE is_vip=0"
+        async with self.conn.execute(q + " ORDER BY RANDOM() LIMIT 1") as c: return await c.fetchone()
+    
+    async def get_media_by_genre(self, genre, user_is_vip=False):
+        q = "SELECT id,name,code,total_parts,status,is_vip,views,rating,image_url FROM media WHERE genre LIKE ?"
+        if not user_is_vip: q += " AND is_vip=0"
+        async with self.conn.execute(q + " ORDER BY name", (f"%{genre}%",)) as c: return await c.fetchall()
+    
+    async def get_all_genres(self):
+        async with self.conn.execute("SELECT DISTINCT genre FROM media WHERE genre!='' AND genre IS NOT NULL") as c:
+            rows = await c.fetchall(); genres = set()
+            for row in rows:
+                if row["genre"]:
+                    for g in row["genre"].split(","):
+                        if g.strip(): genres.add(g.strip())
+            return sorted(list(genres))
+    
+    async def update_media(self, mid, field, value):
+        now = datetime.now().isoformat()
+        await self.conn.execute(f"UPDATE media SET {field}=?,updated_at=? WHERE id=?", (value, now, mid))
+        await self.conn.commit()
+    
+    async def update_media_post_info(self, mid, msg_id, channel):
+        await self.conn.execute("UPDATE media SET post_message_id=?,post_channel=? WHERE id=?", (msg_id, channel, mid))
+        await self.conn.commit()
+    
+    async def delete_media(self, mid):
+        for t in ['parts','favorites','notifications','ratings','watch_history','reports','likes','comments']:
+            await self.conn.execute(f"DELETE FROM {t} WHERE media_id=?", (mid,))
+        await self.conn.execute("DELETE FROM media WHERE id=?", (mid,))
+        await self.conn.commit()
+    
+    async def increment_views(self, mid):
+        await self.conn.execute("UPDATE media SET views=views+1 WHERE id=?", (mid,))
+        await self.conn.commit()
+        today = datetime.now().strftime("%Y-%m-%d")
+        await self.conn.execute("UPDATE daily_stats SET total_views=total_views+1 WHERE date=?", (today,))
+        await self.conn.commit()
+    
+    async def get_media_count(self):
+        async with self.conn.execute("SELECT COUNT(*) FROM media") as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    async def get_ongoing_count(self):
+        async with self.conn.execute("SELECT COUNT(*) FROM media WHERE status='ongoing'") as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    # ================= PARTS METHODS =================
+    async def add_part(self, mid, pnum, file_id, caption="", is_vip=False, duration=0, file_size=0):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT INTO parts (media_id,part_number,file_id,caption,is_vip,duration,file_size,created_at) VALUES(?,?,?,?,?,?,?,?)", (mid, pnum, file_id, caption, 1 if is_vip else 0, duration, file_size, now))
+        await self.conn.execute("UPDATE media SET total_parts=total_parts+1,updated_at=? WHERE id=?", (now, mid))
+        await self.conn.commit()
+        media = await self.get_media_by_id(mid)
+        if media: await self.notify_new_part(mid, media["name"], pnum)
+        return await self.get_last_insert_id()
+    
+    async def get_parts(self, mid, user_is_vip=False):
+        if user_is_vip:
+            async with self.conn.execute("SELECT * FROM parts WHERE media_id=? ORDER BY part_number", (mid,)) as c: return await c.fetchall()
+        async with self.conn.execute("SELECT * FROM parts WHERE media_id=? AND is_vip=0 ORDER BY part_number", (mid,)) as c: return await c.fetchall()
+    
+    async def get_part(self, pid):
+        async with self.conn.execute("SELECT * FROM parts WHERE id=?", (pid,)) as c: return await c.fetchone()
+    
+    async def get_part_by_number(self, mid, pnum):
+        async with self.conn.execute("SELECT * FROM parts WHERE media_id=? AND part_number=?", (mid, pnum)) as c: return await c.fetchone()
+    
+    async def update_part(self, pid, field, value):
+        await self.conn.execute(f"UPDATE parts SET {field}=? WHERE id=?", (value, pid))
+        await self.conn.commit()
+    
+    async def update_part_post_info(self, pid, msg_id, channel):
+        await self.conn.execute("UPDATE parts SET post_message_id=?,post_channel=? WHERE id=?", (msg_id, channel, pid))
+        await self.conn.commit()
+    
+    async def delete_part(self, pid):
+        part = await self.get_part(pid)
+        if part:
+            await self.conn.execute("DELETE FROM parts WHERE id=?", (pid,))
+            await self.conn.execute("UPDATE media SET total_parts=total_parts-1 WHERE id=?", (part["media_id"],))
+            await self.conn.commit(); return True
+        return False
+    
+    async def increment_part_views(self, pid):
+        await self.conn.execute("UPDATE parts SET views=views+1 WHERE id=?", (pid,))
+        await self.conn.commit()
+    
+    async def get_parts_count(self):
+        async with self.conn.execute("SELECT COUNT(*) FROM parts") as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    # ================= FAVORITES =================
+    async def add_favorite(self, uid, mid):
+        await self.conn.execute("INSERT OR IGNORE INTO favorites (user_id,media_id,added_at) VALUES(?,?,?)", (uid, mid, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def remove_favorite(self, uid, mid):
+        await self.conn.execute("DELETE FROM favorites WHERE user_id=? AND media_id=?", (uid, mid))
+        await self.conn.commit()
+    
+    async def get_favorites(self, uid):
+        async with self.conn.execute("SELECT media_id FROM favorites WHERE user_id=? ORDER BY added_at DESC", (uid,)) as c: return await c.fetchall()
+    
+    async def is_favorite(self, uid, mid):
+        async with self.conn.execute("SELECT 1 FROM favorites WHERE user_id=? AND media_id=?", (uid, mid)) as c: return await c.fetchone() is not None
+    
+    # ================= NOTIFICATIONS =================
+    async def add_notification(self, uid, mid, media_name):
+        await self.conn.execute("INSERT OR IGNORE INTO notifications (user_id,media_id,media_name,is_active,created_at) VALUES(?,?,?,1,?)", (uid, mid, media_name, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def remove_notification(self, uid, mid):
+        await self.conn.execute("DELETE FROM notifications WHERE user_id=? AND media_id=?", (uid, mid))
+        await self.conn.commit()
+    
+    async def has_notification(self, uid, mid):
+        async with self.conn.execute("SELECT 1 FROM notifications WHERE user_id=? AND media_id=? AND is_active=1", (uid, mid)) as c: return await c.fetchone() is not None
+    
+    async def get_notifications(self, uid):
+        async with self.conn.execute("SELECT media_id,media_name FROM notifications WHERE user_id=? AND is_active=1", (uid,)) as c: return await c.fetchall()
+    
+    async def get_users_by_notification(self, mid):
+        async with self.conn.execute("SELECT user_id FROM notifications WHERE media_id=? AND is_active=1", (mid,)) as c: return await c.fetchall()
+    
+    async def notify_new_part(self, mid, media_name, pnum):
+        users = await self.get_users_by_notification(mid)
+        for u in users:
+            try: await bot.send_message(u["user_id"], f"🔔 <b>Yangi qism!</b>\n\n🎬 {media_name}\n📀 {pnum}-qism qo'shildi!"); await asyncio.sleep(0.1)
+            except: pass
+    
+    # ================= RATINGS =================
+    async def add_rating(self, uid, mid, rating):
+        await self.conn.execute("INSERT OR REPLACE INTO ratings (user_id,media_id,rating,created_at) VALUES(?,?,?,?)", (uid, mid, rating, datetime.now().isoformat()))
+        await self.conn.commit()
+        async with self.conn.execute("SELECT AVG(rating) as avg, COUNT(*) as cnt FROM ratings WHERE media_id=?", (mid,)) as c:
+            row = await c.fetchone()
+            if row: await self.conn.execute("UPDATE media SET rating=?,rating_count=? WHERE id=?", (row["avg"] or 0, row["cnt"] or 0, mid)); await self.conn.commit()
+    
+    async def get_user_rating(self, uid, mid):
+        async with self.conn.execute("SELECT rating FROM ratings WHERE user_id=? AND media_id=?", (uid, mid)) as c:
+            row = await c.fetchone(); return row["rating"] if row else None
+    
+    # ================= REPORTS =================
+    async def add_report(self, uid, mid, reason):
+        await self.conn.execute("INSERT INTO reports (user_id,media_id,reason,status,created_at) VALUES(?,?,?,'pending',?)", (uid, mid, reason, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def get_reports(self, status="pending"):
+        async with self.conn.execute("SELECT * FROM reports WHERE status=? ORDER BY created_at DESC", (status,)) as c: return await c.fetchall()
+    
+    # ================= REFERRALS =================
+    async def add_referral(self, ref_id, refd_id):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT INTO referrals (referrer_id,referred_id,created_at) VALUES(?,?,?)", (ref_id, refd_id, now))
+        await self.conn.commit()
+        async with self.conn.execute("SELECT COUNT(*) as cnt FROM referrals WHERE referrer_id=? AND is_rewarded=0", (ref_id,)) as c:
+            row = await c.fetchone()
+            if row and row["cnt"] >= 5:
+                await self.conn.execute("UPDATE users SET is_vip=1,vip_expiry=? WHERE id=?", ((datetime.now()+timedelta(days=1)).isoformat(), ref_id))
+                await self.conn.execute("UPDATE referrals SET is_rewarded=1 WHERE referrer_id=?", (ref_id,))
+                await self.conn.commit(); return True
+        return False
+    
+    async def get_referral_count(self, uid):
+        async with self.conn.execute("SELECT COUNT(*) FROM referrals WHERE referrer_id=?", (uid,)) as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    # ================= STATISTICS =================
+    async def get_stats(self):
+        return {"users": await self.get_user_count(), "media": await self.get_media_count(), "parts": await self.get_parts_count(), "vip_users": await self.get_vip_count(), "admins": await self.get_admin_count(), "ongoing": await self.get_ongoing_count(), "total_views": await self.get_total_views()}
+    
+    async def get_total_views(self):
+        async with self.conn.execute("SELECT SUM(views) FROM media") as c:
+            row = await c.fetchone(); return row[0] if row and row[0] else 0
+    
+    async def get_daily_stats(self, days=7):
+        async with self.conn.execute("SELECT * FROM daily_stats ORDER BY date DESC LIMIT ?", (days,)) as c: return await c.fetchall()
+    
+    # ================= FORCED CHANNELS =================
+    async def add_forced_channel(self, username, link, added_by):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT OR IGNORE INTO forced_channels (channel_username,channel_link,is_active,added_at,added_by) VALUES(?,?,1,?,?)", (username, link, now, added_by))
+        await self.conn.commit()
+    
+    async def remove_forced_channel(self, cid):
+        await self.conn.execute("DELETE FROM forced_channels WHERE id=?", (cid,))
+        await self.conn.commit()
+    
+    async def get_forced_channels(self):
+        async with self.conn.execute("SELECT id,channel_username,channel_link FROM forced_channels WHERE is_active=1") as c: return await c.fetchall()
+    
+    async def get_all_forced_channels(self):
+        async with self.conn.execute("SELECT * FROM forced_channels ORDER BY channel_username") as c: return await c.fetchall()
+    
+    # ================= SUGGESTIONS =================
+    async def add_suggestion(self, uid, text):
+        await self.conn.execute("INSERT INTO suggestions (user_id,suggestion,status,created_at) VALUES(?,?,'pending',?)", (uid, text, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def get_suggestions(self, status="pending"):
+        async with self.conn.execute("SELECT * FROM suggestions WHERE status=? ORDER BY created_at DESC", (status,)) as c: return await c.fetchall()
+    
+    # ================= LIKES & COMMENTS =================
+    async def add_like(self, uid, mid):
+        await self.conn.execute("INSERT OR IGNORE INTO likes (user_id,media_id,created_at) VALUES(?,?,?)", (uid, mid, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def remove_like(self, uid, mid):
+        await self.conn.execute("DELETE FROM likes WHERE user_id=? AND media_id=?", (uid, mid))
+        await self.conn.commit()
+    
+    async def get_likes(self, mid):
+        async with self.conn.execute("SELECT COUNT(*) FROM likes WHERE media_id=?", (mid,)) as c:
+            row = await c.fetchone(); return row[0] if row else 0
+    
+    async def has_liked(self, uid, mid):
+        async with self.conn.execute("SELECT 1 FROM likes WHERE user_id=? AND media_id=?", (uid, mid)) as c: return await c.fetchone() is not None
+    
+    async def add_comment(self, uid, mid, username, text):
+        await self.conn.execute("INSERT INTO comments (user_id,media_id,username,text,created_at) VALUES(?,?,?,?,?)", (uid, mid, username, text, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def get_comments(self, mid):
+        async with self.conn.execute("SELECT * FROM comments WHERE media_id=? ORDER BY created_at DESC", (mid,)) as c: return await c.fetchall()
+    
+    # ================= GROUPS =================
+    async def add_group(self, gid, title="", username="", added_by=0):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT OR REPLACE INTO groups (id,title,username,added_by,added_at,is_active) VALUES(?,?,?,?,?,1)", (gid, title, username, added_by, now))
+        await self.conn.commit()
+    
+    async def get_all_groups(self):
+        async with self.conn.execute("SELECT * FROM groups WHERE is_active=1 ORDER BY title") as c: return await c.fetchall()
+    
+    # ================= WATCH HISTORY =================
+    async def add_watch_history(self, uid, mid, pnum):
+        now = datetime.now().isoformat()
+        await self.conn.execute("INSERT INTO watch_history (user_id,media_id,part_number,watched_at) VALUES(?,?,?,?)", (uid, mid, pnum, now))
+        await self.conn.execute("UPDATE users SET total_views=total_views+1 WHERE id=?", (uid,))
+        await self.conn.commit()
+    
+    async def get_continue_watching(self, uid, limit=5):
+        async with self.conn.execute('''SELECT m.id,m.name,m.code,m.total_parts,MAX(w.part_number) as last_part FROM watch_history w JOIN media m ON w.media_id=m.id WHERE w.user_id=? AND m.total_parts>w.part_number GROUP BY w.media_id ORDER BY MAX(w.watched_at) DESC LIMIT ?''', (uid, limit)) as c: return await c.fetchall()
+    
+    # ================= MINI APP USERS =================
+    async def register_mini_app_user(self, uid, first_name="", last_name="", username=""):
+        await self.conn.execute("INSERT OR REPLACE INTO mini_app_users (id,first_name,last_name,username,registered_at) VALUES(?,?,?,?,?)", (uid, first_name, last_name, username, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    # ================= MULTIPLE PARTS =================
+    async def create_multi_part_session(self, uid, mid, media_name):
+        await self.conn.execute("INSERT INTO multi_part_sessions (user_id,media_id,media_name,parts_data,total_parts,created_at) VALUES(?,?,?,'[]',0,?)", (uid, mid, media_name, datetime.now().isoformat()))
+        await self.conn.commit()
+    
+    async def add_to_multi_part_session(self, uid, pnum, file_id, caption=""):
+        session = await self.get_multi_part_session(uid)
+        if not session: return False
+        parts = json.loads(session["parts_data"] or "[]")
+        parts.append({"part_number": pnum, "file_id": file_id, "caption": caption})
+        await self.conn.execute("UPDATE multi_part_sessions SET parts_data=?,total_parts=? WHERE user_id=?", (json.dumps(parts), len(parts), uid))
+        await self.conn.commit(); return True
+    
+    async def get_multi_part_session(self, uid):
+        async with self.conn.execute("SELECT * FROM multi_part_sessions WHERE user_id=?", (uid,)) as c: return await c.fetchone()
+    
+    async def save_multi_part_session(self, uid, is_vip=False):
+        session = await self.get_multi_part_session(uid)
+        if not session: return 0
+        parts = json.loads(session["parts_data"] or "[]"); saved = 0
+        for p in parts:
+            if not await self.get_part_by_number(session["media_id"], p["part_number"]):
+                await self.add_part(session["media_id"], p["part_number"], p["file_id"], p.get("caption", ""), is_vip=is_vip); saved += 1
+        await self.conn.execute("DELETE FROM multi_part_sessions WHERE user_id=?", (uid,))
+        await self.conn.commit(); return saved
+    
+    async def clear_multi_part_session(self, uid):
+        await self.conn.execute("DELETE FROM multi_part_sessions WHERE user_id=?", (uid,))
+        await self.conn.commit()
+    
+    # ================= UTILITY =================
+    async def fetch_one(self, q, p=()):
+        async with self.conn.execute(q, p) as c: return await c.fetchone()
+    
+    async def fetch_all(self, q, p=()):
+        async with self.conn.execute(q, p) as c: return await c.fetchall()
+    
+    async def execute(self, q, p=()):
+        await self.conn.execute(q, p); await self.conn.commit()
+    
+    async def get_last_insert_id(self):
+        async with self.conn.execute("SELECT last_insert_rowid()") as c: return (await c.fetchone())[0]
+    
+    async def close(self):
+        if self.conn: await self.conn.close()
+
+db = Database()
+
+# ================= STATE CLASSES =================
+class SearchStates(StatesGroup):
+    waiting_name = State()
+    waiting_code = State()
+
+class AdminStates(StatesGroup):
+    waiting_broadcast = State()
+    waiting_media_name = State()
+    waiting_media_code = State()
+    waiting_media_genre = State()
+    waiting_media_image = State()
+    waiting_media_description = State()
+    waiting_media_voice = State()
+    waiting_media_quality = State()
+    waiting_media_year = State()
+    waiting_post_channel = State()
+    waiting_part_media = State()
+    waiting_part_number = State()
+    waiting_part_video = State()
+    waiting_part_post = State()
+    waiting_multi_part_media = State()
+    waiting_admin_id = State()
+    waiting_vip_days = State()
+    waiting_delete_confirm = State()
+    waiting_vip_user_id = State()
+    waiting_remove_vip_user_id = State()
+    waiting_add_admin_id = State()
+    waiting_remove_admin_id = State()
+
+class VIPStates(StatesGroup):
+    waiting_phone = State()
+    waiting_proof = State()
+
+class EditMediaStates(StatesGroup):
+    waiting_media_select = State()
+    waiting_field = State()
+    waiting_value = State()
+
+class EditPartStates(StatesGroup):
+    waiting_media_select = State()
+    waiting_part_select = State()
+    waiting_field = State()
+    waiting_value = State()
+
+class SuggestionStates(StatesGroup):
+    waiting_suggestion = State()
+
+class MultiPartStates(StatesGroup):
+    waiting_video = State()
+
+class PostStates(StatesGroup):
+    waiting_channel = State()
+    waiting_confirm = State()
+
+# ================= FORMAT FUNCTIONS =================
+def format_media_info(media) -> str:
+    status_emoji = {"ongoing": "🟢", "completed": "✅", "hiatus": "⏸"}
+    status_text = {"ongoing": "Davom etmoqda", "completed": "Tugallangan", "hiatus": "To'xtatilgan"}
+    
+    media_status = media["status"] if "status" in media.keys() else "ongoing"
+    genre_str = media["genre"] if "genre" in media.keys() and media["genre"] else ""
+    genres = genre_str.split(",") if genre_str else ["Noma'lum"]
+    genre_hashtags = " ".join([f"#{g.strip()}" for g in genres if g.strip()])
+    
+    rating_val = media["rating"] if "rating" in media.keys() and media["rating"] else 0
+    rating_stars = "⭐" * min(5, int(rating_val / 2)) if rating_val > 0 else "❌"
+    rating_count_val = media["rating_count"] if "rating_count" in media.keys() and media["rating_count"] else 0
+    
+    voice_val = media["voice"] if "voice" in media.keys() and media["voice"] else AUTHOR_USERNAME
+    quality_val = media["quality"] if "quality" in media.keys() and media["quality"] else "720p"
+    views_val = media["views"] if "views" in media.keys() and media["views"] else 0
+    is_vip_val = media["is_vip"] if "is_vip" in media.keys() and media["is_vip"] else 0
+    description_val = media["description"] if "description" in media.keys() and media["description"] else ""
+    
+    text = "✽───〔•°⛩°•〕───✽\n"
+    text += f"🏷 <b>Anime nomi</b> : {media['name']}\n"
+    text += ". . . . . . . . . . . . . . . . . . . . . . . ──\n"
+    text += f"🖋 <b>Janri</b> : {genre_hashtags}\n"
+    text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
+    text += f"🎞 <b>Qismlar soni</b> : {media['total_parts']}\n"
+    text += ". . . . . . . . . . . . . . . . . . . . . . . ──\n"
+    text += f"📊 <b>Holati</b> : {status_emoji.get(media_status, '❓')} {status_text.get(media_status, 'Noma\'lum')}\n"
+    text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
+    text += f"🎙 <b>Ovoz berdi</b> : {voice_val}\n"
+    text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
+    text += f"💿 <b>Sifat</b> : {quality_val}\n"
+    text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
+    text += f"💭 <b>Tili</b> : O'zbek tilida\n"
+    text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
+    text += f"⭐ <b>Reyting</b> : {rating_stars} {rating_val:.1f}/10 ({rating_count_val} ta baho)\n"
+    text += "✽───〔•°⛩°•〕───✽\n\n"
+    text += f"🔢 <b>Kod</b> : <code>{media['code']}</code>\n"
+    text += f"👁 <b>Ko'rilgan</b> : {views_val} marta\n"
+    
+    if is_vip_val: text += "👑 <b>VIP kontent</b>\n"
+    if description_val: text += f"\n📝 <b>Tavsif:</b>\n{description_val}\n"
+    
+    return text
+
+def format_number(num) -> str:
+    if num >= 1_000_000: return f"{num/1_000_000:.1f}M"
+    elif num >= 1_000: return f"{num/1_000:.1f}K"
+    return str(num)
+
+def get_welcome_text() -> str:
+    text = "🎬 <b>AniComplex Rasmiy Bot</b> 🎬\n\n"
+    text += "✨ <b>Botimizga xush kelibsiz!</b> ✨\n\n"
+    text += "📚 <b>Bot imkoniyatlari:</b>\n"
+    text += "🔍 Kod, nom yoki janr orqali qidiruv\n"
+    text += "⭐ Sevimlilarga qo'shish\n"
+    text += "🔔 Yangi qismlar haqida bildirishnoma\n"
+    text += "⭐ Anime reytingi (1-10)\n"
+    text += "👑 VIP a'zolik (30 kun)\n"
+    text += "🤖 Guruhga qo'shish\n"
+    text += "💬 Taklif va shikoyatlar\n"
+    text += "🎲 Random anime tavsiyasi\n"
+    text += "📊 Tomosha tarixi\n"
+    text += "👥 Do'stlarni taklif qilish\n\n"
+    text += f"📢 <b>Kanal:</b> {MAIN_CHANNEL}\n"
+    text += f"👨‍💻 <b>Muallif:</b> <a href='{AUTHOR_LINK}'>{AUTHOR_USERNAME}</a>\n"
+    text += f"🆘 <b>Yordam:</b> <a href='{SUPPORT_LINK}'>{SUPPORT_USERNAME}</a>\n\n"
+    text += f"🔢 <b>Bot versiyasi:</b> {BOT_VERSION}\n\n"
+    text += "⬇️ <b>Quyidagi tugmalardan foydalaning:</b>"
+    return text
+
+# ================= MENUS =================
+def get_main_menu(user_is_vip=False, is_group=False) -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton(text="🔍 Qidiruv", callback_data="search_menu")],
+        [InlineKeyboardButton(text="⭐ Sevimlilar", callback_data="favorites"),
+         InlineKeyboardButton(text="🔔 Bildirishnoma", callback_data="notifications")],
+        [InlineKeyboardButton(text="📋 Media ro'yxati", callback_data="list_all")],
+        [InlineKeyboardButton(text="📊 Davom eting", callback_data="continue_watching")],
+        [InlineKeyboardButton(text="🟢 Davom etayotganlar", callback_data="ongoing_media"),
+         InlineKeyboardButton(text="✅ Tugallanganlar", callback_data="completed_media")],
+        [InlineKeyboardButton(text="🏆 Eng ko'p ko'rilganlar", callback_data="most_viewed"),
+         InlineKeyboardButton(text="⭐ Eng yaxshi reyting", callback_data="highest_rated")],
+        [InlineKeyboardButton(text="🆕 So'ngi qo'shilganlar", callback_data="recent_media"),
+         InlineKeyboardButton(text="🎲 Random Anime", callback_data="random_media")],
+    ]
+    
+    if is_group:
+        buttons.append([InlineKeyboardButton(text="🤖 Guruhga qo'shish", callback_data="add_to_group")])
+    else:
+        buttons.append([InlineKeyboardButton(text="👑 VIP bo'lish", callback_data="become_vip")])
+        if user_is_vip: buttons.insert(4, [InlineKeyboardButton(text="👑 VIP Media", callback_data="vip_media")])
+        buttons.append([InlineKeyboardButton(text="🤖 Guruhga qo'shish", callback_data="add_to_group")])
+        if MINI_APP_URL and MINI_APP_URL.startswith("https://"):
+            buttons.append([InlineKeyboardButton(text="🎮 Mini App", web_app=WebAppInfo(url=MINI_APP_URL))])
+        buttons.append([InlineKeyboardButton(text="💬 Taklif yuborish", callback_data="suggestion"),
+                        InlineKeyboardButton(text="🎁 Do'stlarni taklif", callback_data="referral")])
+        buttons.append([InlineKeyboardButton(text="🔐 Admin panel", callback_data="admin_panel")])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_search_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📝 Anime nomi orqali", callback_data="search_by_name")],
+        [InlineKeyboardButton(text="🔢 Kod orqali", callback_data="search_by_code")],
+        [InlineKeyboardButton(text="🎭 Janr orqali qidirish", callback_data="search_by_genre")],
+        [InlineKeyboardButton(text="🎲 Random Anime", callback_data="random_media")],
+        [InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start")]
+    ])
+
+def get_admin_menu() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="➕ Media qo'shish")],
+        [KeyboardButton(text="📢 Media post qilish"), KeyboardButton(text="📢 Qism post qilish")],
+        [KeyboardButton(text="✏️ Media tahrirlash"), KeyboardButton(text="🗑 Media o'chirish")],
+        [KeyboardButton(text="📀 Qism qo'shish"), KeyboardButton(text="🎬 Ko'p qism qo'shish")],
+        [KeyboardButton(text="✏️ Qism tahrirlash"), KeyboardButton(text="🗑 Qism o'chirish")],
+        [KeyboardButton(text="📨 Xabar yuborish"), KeyboardButton(text="👑 VIP so'rovlar")],
+        [KeyboardButton(text="👑 VIP berish"), KeyboardButton(text="👑 VIP olib tashlash")],
+        [KeyboardButton(text="👥 Admin qo'shish"), KeyboardButton(text="👥 Admin o'chirish")],
+        [KeyboardButton(text="🔗 Majburiy kanal"), KeyboardButton(text="📝 Takliflar")],
+        [KeyboardButton(text="⚠️ Shikoyatlar"), KeyboardButton(text="📊 Daily stats")],
+        [KeyboardButton(text="🔙 Bosh menyu")]
+    ], resize_keyboard=True)
+
+def get_media_edit_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📝 Nomi", callback_data="edit_name"),
+         InlineKeyboardButton(text="🔢 Kod", callback_data="edit_code")],
+        [InlineKeyboardButton(text="🎭 Janr", callback_data="edit_genre"),
+         InlineKeyboardButton(text="📊 Holat", callback_data="edit_status")],
+        [InlineKeyboardButton(text="🖼 Rasm", callback_data="edit_image"),
+         InlineKeyboardButton(text="📝 Tavsif", callback_data="edit_description")],
+        [InlineKeyboardButton(text="🎙 Ovoz", callback_data="edit_voice"),
+         InlineKeyboardButton(text="💿 Sifat", callback_data="edit_quality")],
+        [InlineKeyboardButton(text="👑 VIP", callback_data="edit_vip"),
+         InlineKeyboardButton(text="📅 Yil", callback_data="edit_year")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="cancel_edit")]
+    ])
+
+def get_back_button() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start")]
+    ])
+
+def get_back_to_search_button() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Qidiruvga qaytish", callback_data="search_menu")]
+    ])
+
+# ================= SUBSCRIPTION MIDDLEWARE =================
+class SubscriptionMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user_id = None
+        
+        if isinstance(event, Message):
+            user_id = event.from_user.id
+            if event.text and (event.text.startswith("/start") or event.text.startswith("/cancel")):
+                return await handler(event, data)
+        elif isinstance(event, CallbackQuery):
+            user_id = event.from_user.id
+            if event.data in ["confirm_subscription", "check_subscription", "back_to_start"]:
+                return await handler(event, data)
+        
+        if not user_id: return await handler(event, data)
+        
+        channels = await db.get_forced_channels()
+        if not channels: return await handler(event, data)
+        
+        not_subscribed = []
+        for ch in channels:
+            try:
+                member = await bot.get_chat_member(ch["channel_username"], user_id)
+                if member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]:
+                    not_subscribed.append(ch)
+            except Exception: not_subscribed.append(ch)
+        
+        if not_subscribed:
+            text = "❌ <b>Botdan foydalanish uchun quyidagi kanal(lar)ga a'zo bo'ling:</b>\n\n"
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+            for ch in not_subscribed:
+                text += f"• {ch['channel_username']}\n"
+                keyboard.inline_keyboard.append([InlineKeyboardButton(text=f"📢 {ch['channel_username']}", url=ch['channel_link'])])
+            text += "\n✅ A'zo bo'lgandan so'ng <b>A'zo bo'ldim</b> tugmasini bosing."
+            keyboard.inline_keyboard.append([InlineKeyboardButton(text="✅ A'zo bo'ldim", callback_data="check_subscription")])
+            
+            if isinstance(event, Message): await event.answer(text, reply_markup=keyboard)
+            else:
+                try: await event.message.edit_text(text, reply_markup=keyboard)
+                except: await event.message.answer(text, reply_markup=keyboard)
+            return
+        
+        return await handler(event, data)
+
+dp.message.middleware(SubscriptionMiddleware())
+dp.callback_query.middleware(SubscriptionMiddleware())
+
+# ================= BOT GURUHGA QO'SHILGANDA =================
+@dp.my_chat_member()
+async def bot_added_to_group(event: types.ChatMemberUpdated):
+    if event.new_chat_member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR]:
+        chat = event.chat
+        if chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+            await db.add_group(chat.id, chat.title or "", chat.username or "", event.from_user.id)
+            logger.info(f"✅ Guruh saqlandi: {chat.title}")
+
+# ================= START HANDLER =================
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    user_id = message.from_user.id
+    chat_type = message.chat.type
+    
+    await db.add_user(user_id, message.from_user.username or "", message.from_user.first_name or "", message.from_user.last_name or "")
+    await db.update_activity(user_id)
+    user_is_vip = await db.is_vip(user_id)
+    
+    # Guruhda start
+    if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        await db.add_group(message.chat.id, message.chat.title or "", message.chat.username or "", user_id)
+        try: await bot.send_message(user_id, "🤖 <b>Guruhda bot ishlaydi!</b>\n\nAnime qidirish uchun:", reply_markup=get_main_menu(user_is_vip, is_group=True))
+        except: pass
+        return
+    
+    args = message.text.split()
+    # Referral
+    if len(args) > 1 and args[1].startswith("ref_"):
+        try:
+            ref_id = int(args[1].split("_")[1])
+            if ref_id != user_id:
+                if await db.add_referral(ref_id, user_id):
+                    await bot.send_message(ref_id, "🎉 5 ta do'st taklif qildingiz! 1 kun VIP sovg'a!")
+        except: pass
+    
+    # Deep link - code
+    if len(args) > 1 and args[1].startswith("code_"):
+        try:
+            code = int(args[1].split("_")[1])
+            media = await db.get_media_by_code(code)
+            if media: await show_media_details(message, media["id"], user_is_vip); return
+        except: pass
+    
+    # Deep link - part
+    if len(args) > 1 and args[1].startswith("part_"):
+        try:
+            part_id = int(args[1].split("_")[1])
+            await play_part_direct(message, part_id, user_is_vip); return
+        except: pass
+    
+    await message.answer(get_welcome_text(), reply_markup=get_main_menu(user_is_vip))
+
+async def play_part_direct(event: Union[Message, CallbackQuery], part_id: int, user_is_vip: bool):
+    part = await db.get_part(part_id)
+    if not part: await safe_reply(event, "❌ Qism topilmadi!"); return
+    if part["is_vip"] and not user_is_vip: await safe_reply(event, "🔒 VIP kontent!"); return
+    
+    await db.increment_part_views(part_id)
+    media = await db.get_media_by_id(part["media_id"])
+    await db.add_watch_history(event.from_user.id, media["id"], part["part_number"])
+    
+    text = f"🎬 <b>{media['name']}</b>\n📀 <b>{part['part_number']}-qism</b>"
+    if part["caption"]: text += f"\n{part['caption']}"
+    
+    try:
+        if isinstance(event, Message): await event.answer_video(video=part["file_id"], caption=text)
+        else: await event.message.answer_video(video=part["file_id"], caption=text)
+    except: await safe_reply(event, f"❌ Video yuklanmadi!\n👨‍💻 Yordam: {SUPPORT_USERNAME}")
+
+@dp.callback_query(F.data == "check_subscription")
+async def check_subscription(callback: CallbackQuery):
+    channels = await db.get_forced_channels()
+    not_subscribed = []
+    for ch in channels:
+        try:
+            member = await bot.get_chat_member(ch["channel_username"], callback.from_user.id)
+            if member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]: not_subscribed.append(ch)
+        except: not_subscribed.append(ch)
+    
+    if not_subscribed:
+        text = "❌ <b>Siz hali quyidagi kanal(lar)ga a'zo emassiz:</b>\n\n"
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+        for ch in not_subscribed:
+            text += f"• {ch['channel_username']}\n"
+            keyboard.inline_keyboard.append([InlineKeyboardButton(text=f"📢 {ch['channel_username']}", url=ch['channel_link'])])
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="✅ A'zo bo'ldim", callback_data="check_subscription")])
+        try: await callback.message.edit_text(text, reply_markup=keyboard)
+        except: await callback.message.answer(text, reply_markup=keyboard)
+    else:
+        user_is_vip = await db.is_vip(callback.from_user.id)
+        try: await callback.message.delete()
+        except: pass
+        await callback.message.answer(get_welcome_text(), reply_markup=get_main_menu(user_is_vip))
+    await callback.answer()
+
+@dp.callback_query(F.data == "back_to_start")
+async def back_to_start(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    try: await callback.message.delete()
+    except: pass
+    await callback.message.answer(get_welcome_text(), reply_markup=get_main_menu(user_is_vip))
+    await callback.answer()
+
+@dp.message(F.text == "🔙 Bosh menyu")
+async def back_to_main(message: Message):
+    await message.answer(get_welcome_text(), reply_markup=get_main_menu(await db.is_vip(message.from_user.id)))
+
+# ================= GURUHGA QO'SHISH =================
+@dp.callback_query(F.data == "add_to_group")
+async def add_to_group_start(callback: CallbackQuery):
+    groups = await db.get_all_groups()
+    text = "🤖 <b>Guruhga qo'shish</b>\n\n"
+    kb = InlineKeyboardMarkup(inline_keyboard=[])
+    
+    if groups:
+        text += "📋 <b>Mavjud guruhlar:</b>\n\n"
+        for g in groups[:10]:
+            text += f"• {g['title']}\n"
+            if g['username']: kb.inline_keyboard.append([InlineKeyboardButton(text=f"➕ {g['title']}", url=f"https://t.me/{g['username']}")])
+    else:
+        text += "📭 Hozircha guruhlar mavjud emas\n\n"
+    
+    text += "\n📌 <b>Yangi guruh qo'shish:</b>\n1. Botni guruhingizga qo'shing\n2. Botga ADMIN huquqini bering\n3. Guruhda /start yuboring\n\n👨‍💻 Yordam: " + SUPPORT_USERNAME
+    kb.inline_keyboard.append([InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start")])
+    await callback.message.edit_text(text, reply_markup=kb)
+    await callback.answer()
+
+# ================= SEARCH HANDLERS =================
+@dp.callback_query(F.data == "search_menu")
+async def search_menu_callback(callback: CallbackQuery):
+    await callback.message.edit_text("🔍 <b>Qidiruv tipini tanlang</b>", reply_markup=get_search_menu())
+    await callback.answer()
+
+@dp.callback_query(F.data == "search_by_name")
+async def search_by_name_start(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("📝 <b>Anime nomini kiriting:</b>\n\n🔙 /cancel", reply_markup=get_back_button())
+    await state.set_state(SearchStates.waiting_name)
+    await callback.answer()
+
+@dp.message(SearchStates.waiting_name)
+async def search_by_name_result(message: Message, state: FSMContext):
+    query = message.text.strip()
+    user_is_vip = await db.is_vip(message.from_user.id)
+    results = await db.search_media(query)
+    filtered = [m for m in results if not m["is_vip"] or user_is_vip]
+    
+    if not filtered:
+        await message.answer(f"❌ '{query}' bo'yicha topilmadi!", reply_markup=get_back_button())
+        await state.clear(); return
+    
+    builder = InlineKeyboardBuilder()
+    for m in filtered:
+        star = "⭐" if (m["rating"] or 0) > 7 else ""
+        builder.button(text=f"{star} {m['name']} [{m['code']}]", callback_data=f"view_media_{m['id']}")
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Qidiruvga qaytish", callback_data="search_menu"))
+    
+    await message.answer(f"🔍 '{query}' bo'yicha {len(filtered)} ta natija:", reply_markup=builder.as_markup())
+    await state.clear()
+
+@dp.callback_query(F.data == "search_by_code")
+async def search_by_code_start(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("🔢 <b>Anime kodini kiriting:</b>\n\n🔙 /cancel", reply_markup=get_back_button())
+    await state.set_state(SearchStates.waiting_code)
+    await callback.answer()
+
+@dp.message(SearchStates.waiting_code)
+async def search_by_code_result(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if media: await show_media_details(message, media["id"], await db.is_vip(message.from_user.id))
+        else: await message.answer(f"❌ {code} kodli media topilmadi!", reply_markup=get_back_button())
+    except: await message.answer("❌ Faqat raqam kiriting!")
+    await state.clear()
+
+@dp.callback_query(F.data == "search_by_genre")
+async def search_by_genre_start(callback: CallbackQuery):
+    genres = await db.get_all_genres()
+    if not genres: await callback.answer("❌ Janrlar mavjud emas!", show_alert=True); return
+    
+    builder = InlineKeyboardBuilder()
+    for g in genres[:20]: builder.button(text=f"#{g}", callback_data=f"genre_select_{g}")
+    builder.adjust(2)
+    builder.row(InlineKeyboardButton(text="🔙 Qidiruvga qaytish", callback_data="search_menu"))
+    await callback.message.edit_text(f"🎭 <b>Janrni tanlang</b> ({len(genres)} ta)", reply_markup=builder.as_markup())
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("genre_select_"))
+async def genre_result(callback: CallbackQuery):
+    genre = callback.data.replace("genre_select_", "")
+    results = await db.get_media_by_genre(genre, await db.is_vip(callback.from_user.id))
+    if not results: await callback.answer(f"❌ #{genre} topilmadi!", show_alert=True); return
+    
+    builder = InlineKeyboardBuilder()
+    for m in results:
+        star = "⭐" if (m["rating"] or 0) > 7 else ""
+        builder.button(text=f"{star} {m['name']} [{m['code']}]", callback_data=f"view_media_{m['id']}")
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Janrlarga qaytish", callback_data="search_by_genre"))
+    await callback.message.edit_text(f"🎭 <b>#{genre}</b> da {len(results)} ta anime:", reply_markup=builder.as_markup())
+    await callback.answer()
+
+# ================= MEDIA LIST HANDLERS =================
+@dp.callback_query(F.data == "ongoing_media")
+async def ongoing_media(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    results = await db.get_ongoing_media(user_is_vip)
+    
+    if not results:
+        await callback.answer("❌ Hozircha davom etayotgan animelar yo'q!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for media in results:
+        rating_val = media["rating"] if "rating" in media else 0
+        rating_star = "⭐" if rating_val > 7 else ""
+        builder.button(
+            text=f"🟢 {rating_star} {media['name']} [{media['code']}] - {media['total_parts']} qism",
+            callback_data=f"view_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start"))
+    
+    await callback.message.edit_text(
+        f"🟢 <b>Davom etayotgan animelar</b>\n\n📊 Jami: {len(results)} ta anime",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "completed_media")
+async def completed_media(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    results = await db.get_completed_media(user_is_vip)
+    
+    if not results:
+        await callback.answer("❌ Hozircha tugallangan animelar yo'q!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for media in results:
+        rating_val = media["rating"] if "rating" in media else 0
+        rating_star = "⭐" if rating_val > 7 else ""
+        builder.button(
+            text=f"✅ {rating_star} {media['name']} [{media['code']}] - {media['total_parts']} qism",
+            callback_data=f"view_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start"))
+    
+    await callback.message.edit_text(
+        f"✅ <b>Tugallangan animelar</b>\n\n📊 Jami: {len(results)} ta anime",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "most_viewed")
+async def most_viewed(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    results = await db.get_most_viewed(15, user_is_vip)
+    
+    if not results:
+        await callback.answer("❌ Hozircha media yo'q!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for i, media in enumerate(results, 1):
+        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+        vip = "👑 " if media["is_vip"] else ""
+        views_val = media["views"] if "views" in media else 0
+        builder.button(
+            text=f"{medal} {vip}{media['name']} [{media['code']}] 👁 {format_number(views_val)}",
+            callback_data=f"view_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Qidiruvga qaytish", callback_data="search_menu"))
+    
+    await callback.message.edit_text(
+        "🏆 <b>Eng ko'p ko'rilgan animelar</b>\n\nTOP 15:",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "highest_rated")
+async def highest_rated(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    results = await db.get_highest_rated(15, user_is_vip)
+    
+    if not results:
+        await callback.answer("❌ Hozircha reytinglar mavjud emas!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for i, media in enumerate(results, 1):
+        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+        vip = "👑 " if media["is_vip"] else ""
+        rating_val = media["rating"] if "rating" in media else 0
+        stars = "⭐" * min(5, int(rating_val / 2))
+        builder.button(
+            text=f"{medal} {vip}{media['name']} [{media['code']}] {stars} {rating_val:.1f}",
+            callback_data=f"view_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Qidiruvga qaytish", callback_data="search_menu"))
+    
+    await callback.message.edit_text(
+        "⭐ <b>Eng yaxshi reytingli animelar</b>\n\nTOP 15:",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "recent_media")
+async def recent_media(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    results = await db.get_recent_media(15, user_is_vip)
+    
+    if not results:
+        await callback.answer("❌ Hozircha media yo'q!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for media in results:
+        vip = "👑 " if media["is_vip"] else ""
+        date = media["created_at"][:10] if media["created_at"] else ""
+        builder.button(
+            text=f"🆕 {vip}{media['name']} [{media['code']}] ({date})",
+            callback_data=f"view_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Qidiruvga qaytish", callback_data="search_menu"))
+    
+    await callback.message.edit_text(
+        "🆕 <b>So'ngi qo'shilgan animelar</b>\n\nTOP 15:",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "random_media")
+async def random_media(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    media = await db.get_random_media(user_is_vip)
+    
+    if not media:
+        await callback.answer("❌ Hozircha media yo'q!", show_alert=True)
+        return
+    
+    await show_media_details(callback, media["id"], user_is_vip)
+    await callback.answer()
+
+@dp.callback_query(F.data == "continue_watching")
+async def continue_watching(callback: CallbackQuery):
+    results = await db.get_continue_watching(callback.from_user.id)
+    
+    if not results:
+        await callback.answer("📊 Davom etayotgan animelar yo'q!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for media in results:
+        builder.button(
+            text=f"📺 {media['name']} [{media['code']}] - {media['last_part']}/{media['total_parts']}",
+            callback_data=f"watch_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start"))
+    
+    await callback.message.edit_text(
+        "📊 <b>Davom etayotgan animelar</b>\n\nTomosha qilishda davom eting:",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "list_all")
+async def list_all_media(callback: CallbackQuery):
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    media_list = await db.get_all_media(user_is_vip)
+    
+    if not media_list:
+        await callback.message.edit_text("📭 Hozircha media mavjud emas!", reply_markup=get_back_button())
+        await callback.answer()
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for media in media_list:
+        status = "✅" if media["status"] == "completed" else "🟢"
+        vip = "👑 " if media["is_vip"] else ""
+        builder.button(
+            text=f"{status} {vip}{media['name']} [{media['code']}]",
+            callback_data=f"view_media_{media['id']}"
+        )
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start"))
+    
+    await callback.message.edit_text(
+        f"📚 <b>MEDIA RO'YXATI</b>\n\n📊 Jami: {len(media_list)} ta media\n\n👇 Kerakli animeni tanlang:",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+
+# ================= MEDIA DISPLAY =================
+async def show_media_details(event, media_id, user_is_vip=False):
+    media = await db.get_media_by_id(media_id)
+    if not media:
+        await safe_reply(event, "❌ Media topilmadi!")
+        return
+    
+    if media["is_vip"] and not user_is_vip:
+        await safe_reply(event, f"🔒 <b>{media['name']}</b> VIP kontent!\n\n👑 VIP bo'lish uchun /start -> VIP bo'lish")
+        return
+    
+    await db.increment_views(media_id)
+    
+    uid = event.from_user.id if hasattr(event, 'from_user') else 0
+    is_fav = await db.is_favorite(uid, media_id) if uid else False
+    is_notif = await db.has_notification(uid, media_id) if uid else False
+    likes = await db.get_likes(media_id)
+    comments = await db.get_comments(media_id)
+    user_rating = await db.fetch_one("SELECT rating FROM ratings WHERE user_id=? AND media_id=?", (uid, media_id)) if uid else None
+    
+    fav_text = "❌ Sevimlilardan o'chirish" if is_fav else "⭐ Sevimlilarga qo'shish"
+    fav_cb = f"remove_favorite_{media_id}" if is_fav else f"add_favorite_{media_id}"
+    notif_text = "🔕 Bildirishnomani o'chirish" if is_notif else "🔔 Bildirishnoma yoqish"
+    notif_cb = f"remove_notification_{media_id}" if is_notif else f"add_notification_{media_id}"
+    
+    text = format_media_info(media)
+    text += f"\n❤️ {likes} layk | 💬 {len(comments)} izoh"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📺 Tomosha qilish", callback_data=f"watch_media_{media_id}")],
+        [InlineKeyboardButton(text=fav_text, callback_data=fav_cb),
+         InlineKeyboardButton(text=notif_text, callback_data=notif_cb)],
+        [InlineKeyboardButton(text=f"⭐ Baho berish" + (f" ({user_rating['rating']}/10)" if user_rating else ""), callback_data=f"rate_media_{media_id}")],
+        [InlineKeyboardButton(text="❤️ Layk", callback_data=f"like_media_{media_id}"),
+         InlineKeyboardButton(text="💬 Izoh", callback_data=f"comment_media_{media_id}")],
+        [InlineKeyboardButton(text="⚠️ Shikoyat qilish", callback_data=f"report_media_{media_id}")],
+        [InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start")]
+    ])
+    
+    if media["image_url"]:
+        await safe_send_photo(event, media["image_url"], text, keyboard)
+    else:
+        await safe_reply(event, text, reply_markup=keyboard)
+
+@dp.callback_query(F.data.startswith("view_media_"))
+async def view_media(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    await show_media_details(callback, media_id, await db.is_vip(callback.from_user.id))
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("watch_media_"))
+async def watch_media(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    media = await db.get_media_by_id(media_id)
+    
+    if not media: await callback.answer("Media topilmadi!"); return
+    if media["is_vip"] and not user_is_vip:
+        await callback.answer("🔒 VIP kontent!", show_alert=True); return
+    
+    parts = await db.get_parts(media_id, user_is_vip)
+    if not parts: await callback.answer("📀 Qismlar mavjud emas!", show_alert=True); return
+    
+    builder = InlineKeyboardBuilder()
+    for part in parts:
+        vip = "👑 " if part["is_vip"] else ""
+        builder.button(text=f"{vip}{part['part_number']}-qism", callback_data=f"watch_part_{part['id']}")
+    builder.adjust(5)
+    builder.row(InlineKeyboardButton(text="🔙 Media ma'lumotlari", callback_data=f"view_media_{media_id}"))
+    builder.row(InlineKeyboardButton(text="🏠 Bosh menyu", callback_data="back_to_start"))
+    
+    rating_val = media["rating"] if "rating" in media else 0
+    rating_count_val = media["rating_count"] if "rating_count" in media else 0
+    text = f"📺 <b>{media['name']}</b>\n\n📹 Qismlarni tanlang:\n📀 Jami: {len(parts)} ta qism\n⭐ Reyting: {rating_val:.1f}/10 ({rating_count_val} ta baho)"
+    
+    try:
+        if callback.message.photo or callback.message.video:
+            await callback.message.edit_caption(caption=text, reply_markup=builder.as_markup())
+        else:
+            await callback.message.edit_text(text, reply_markup=builder.as_markup())
+    except:
+        await callback.message.answer(text, reply_markup=builder.as_markup())
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("watch_part_"))
+async def watch_part(callback: CallbackQuery):
+    part_id = int(callback.data.split("_")[2])
+    part = await db.get_part(part_id)
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    
+    if not part: await callback.answer("Qism topilmadi!"); return
+    if part["is_vip"] and not user_is_vip:
+        await callback.answer("🔒 VIP kontent!", show_alert=True); return
+    
+    await db.increment_part_views(part_id)
+    media = await db.get_media_by_id(part["media_id"])
+    await db.add_watch_history(callback.from_user.id, media["id"], part["part_number"])
+    
+    text = f"🎬 <b>{media['name']}</b>\n📀 <b>{part['part_number']}-qism</b>\n"
+    if part["caption"]: text += f"\n{part['caption']}"
+    rating_val = media["rating"] if "rating" in media else 0
+    text += f"\n\n⭐ Reyting: {rating_val:.1f}/10"
+    
+    try:
+        await callback.message.answer_video(video=part["file_id"], caption=text)
+    except Exception as e:
+        logger.error(f"Video error: {e}")
+        await callback.message.answer(f"❌ Video yuklab bo'lmadi!\n👨‍💻 Yordam: {SUPPORT_USERNAME}")
+    await callback.answer()
+
+# ================= FAVORITES =================
+@dp.callback_query(F.data.startswith("add_favorite_"))
+async def add_favorite(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    await db.add_favorite(callback.from_user.id, media_id)
+    await callback.answer("✅ Sevimlilarga qo'shildi!", show_alert=True)
+    await show_media_details(callback, media_id, await db.is_vip(callback.from_user.id))
+
+@dp.callback_query(F.data.startswith("remove_favorite_"))
+async def remove_favorite(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    await db.remove_favorite(callback.from_user.id, media_id)
+    await callback.answer("❌ Sevimlilardan o'chirildi!", show_alert=True)
+    await show_media_details(callback, media_id, await db.is_vip(callback.from_user.id))
+
+@dp.callback_query(F.data == "favorites")
+async def show_favorites(callback: CallbackQuery):
+    favs = await db.get_favorites(callback.from_user.id)
+    user_is_vip = await db.is_vip(callback.from_user.id)
+    
+    if not favs:
+        await callback.answer("⭐ Sevimlilar ro'yxatingiz bo'sh!", show_alert=True)
+        return
+    
+    builder = InlineKeyboardBuilder()
+    count = 0
+    for fav in favs:
+        media = await db.get_media_by_id(fav["media_id"])
+        if media and (not media["is_vip"] or user_is_vip):
+            rating_val = media["rating"] if "rating" in media else 0
+            rating_star = "⭐" if rating_val > 7 else ""
+            builder.button(text=f"{rating_star} {media['name']} [{media['code']}]", callback_data=f"view_media_{media['id']}")
+            count += 1
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start"))
+    
+    await callback.message.edit_text(f"⭐ <b>Sevimli animelaringiz</b>\n\n📊 Jami: {count} ta", reply_markup=builder.as_markup())
+    await callback.answer()
+
+# ================= NOTIFICATIONS =================
+@dp.callback_query(F.data.startswith("add_notification_"))
+async def add_notification(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    media = await db.get_media_by_id(media_id)
+    if media:
+        await db.add_notification(callback.from_user.id, media_id, media["name"])
+        await callback.answer("🔔 Bildirishnoma yoqildi!", show_alert=True)
+    await show_media_details(callback, media_id, await db.is_vip(callback.from_user.id))
+
+@dp.callback_query(F.data.startswith("remove_notification_"))
+async def remove_notification(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    await db.remove_notification(callback.from_user.id, media_id)
+    await callback.answer("🔕 Bildirishnoma o'chirildi!", show_alert=True)
+    await show_media_details(callback, media_id, await db.is_vip(callback.from_user.id))
+
+@dp.callback_query(F.data == "notifications")
+async def show_notifications(callback: CallbackQuery):
+    notifs = await db.get_notifications(callback.from_user.id)
+    if not notifs:
+        await callback.answer("🔔 Bildirishnomalar ro'yxatingiz bo'sh!", show_alert=True)
+        return
+    
+    text = "🔔 <b>Bildirishnoma yoqilgan animelar</b>\n\n"
+    for n in notifs: text += f"• {n['media_name']}\n"
+    text += f"\n📊 Jami: {len(notifs)} ta anime\n⚠️ Yangi qism chiqqanda xabar olasiz"
+    
+    await callback.message.edit_text(text, reply_markup=get_back_button())
+    await callback.answer()
+
+# ================= RATINGS =================
+@dp.callback_query(F.data.startswith("rate_media_"))
+async def rate_media_start(callback: CallbackQuery, state: FSMContext):
+    media_id = int(callback.data.split("_")[2])
+    await state.update_data(rate_media_id=media_id)
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=str(i), callback_data=f"set_rating_{i}") for i in range(1, 6)],
+        [InlineKeyboardButton(text=str(i), callback_data=f"set_rating_{i}") for i in range(6, 11)]
+    ])
+    
+    text = "⭐ <b>Animega baho bering (1-10):</b>\n\n1-2: Yomon | 3-4: O'rtacha | 5-6: Yaxshi\n7-8: Ajoyib | 9-10: Shoh asar"
+    
+    try:
+        if callback.message.photo or callback.message.video:
+            await callback.message.edit_caption(caption=text, reply_markup=kb)
+        else:
+            await callback.message.edit_text(text, reply_markup=kb)
+    except:
+        await callback.message.answer(text, reply_markup=kb)
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("set_rating_"))
+async def set_rating(callback: CallbackQuery, state: FSMContext):
+    rating = int(callback.data.split("_")[2])
+    data = await state.get_data()
+    media_id = data.get("rate_media_id")
+    if media_id:
+        await db.add_rating(callback.from_user.id, media_id, rating)
+        await callback.answer(f"✅ Baho {rating}/10 qo'yildi!", show_alert=True)
+    await state.clear()
+
+# ================= REPORTS =================
+@dp.callback_query(F.data.startswith("report_media_"))
+async def report_media_start(callback: CallbackQuery, state: FSMContext):
+    media_id = int(callback.data.split("_")[2])
+    await state.update_data(report_media_id=media_id)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔞 Noo'rin kontent", callback_data="report_submit_inappropriate")],
+        [InlineKeyboardButton(text="📀 Sifatli emas", callback_data="report_submit_quality")],
+        [InlineKeyboardButton(text="🔗 Havola ishlamaydi", callback_data="report_submit_broken")],
+        [InlineKeyboardButton(text="📝 Boshqa sabab", callback_data="report_submit_other")],
+        [InlineKeyboardButton(text="🔙 Ortga", callback_data=f"view_media_{media_id}")]
+    ])
+    
+    await callback.message.edit_text("⚠️ <b>Shikoyat sababini tanlang:</b>", reply_markup=keyboard)
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("report_submit_"))
+async def report_media_submit(callback: CallbackQuery, state: FSMContext):
+    reasons = {"inappropriate": "Noo'rin kontent", "quality": "Sifatli emas", "broken": "Havola ishlamaydi", "other": "Boshqa sabab"}
+    key = callback.data.replace("report_submit_", "")
+    if key in reasons:
+        data = await state.get_data()
+        media_id = data.get("report_media_id")
+        if media_id:
+            await db.add_report(callback.from_user.id, media_id, reasons[key])
+            await callback.answer("✅ Shikoyatingiz qabul qilindi!", show_alert=True)
+            for admin_id in ADMINS:
+                try: await bot.send_message(admin_id, f"⚠️ <b>Yangi shikoyat</b>\n\n👤 {callback.from_user.full_name}\n🆔 <code>{callback.from_user.id}</code>\n🎬 Media ID: {media_id}\n📝 Sabab: {reasons[key]}")
+                except: pass
+    await state.clear()
+
+# ================= LIKES & COMMENTS =================
+@dp.callback_query(F.data.startswith("like_media_"))
+async def like_media(callback: CallbackQuery):
+    media_id = int(callback.data.split("_")[2])
+    if await db.has_liked(callback.from_user.id, media_id):
+        await db.remove_like(callback.from_user.id, media_id)
+        await callback.answer("❤️ Layk olib tashlandi!", show_alert=True)
+    else:
+        await db.add_like(callback.from_user.id, media_id)
+        await callback.answer("❤️ Layk bosildi!", show_alert=True)
+
+@dp.callback_query(F.data.startswith("comment_media_"))
+async def comment_media_start(callback: CallbackQuery, state: FSMContext):
+    media_id = int(callback.data.split("_")[2])
+    await state.update_data(comment_media_id=media_id)
+    await callback.message.answer("💬 <b>Izohingizni yozing:</b>\n\n/cancel - bekor qilish")
+    await state.set_state(SuggestionStates.waiting_suggestion)
+    await callback.answer()
+
+@dp.message(SuggestionStates.waiting_suggestion)
+async def handle_suggestion_or_comment(message: Message, state: FSMContext):
+    data = await state.get_data()
+    comment_mid = data.get("comment_media_id")
+    
+    if comment_mid:
+        # Bu izoh
+        await db.add_comment(message.from_user.id, comment_mid, message.from_user.username or message.from_user.first_name, message.text.strip())
+        await message.answer("✅ <b>Izohingiz qabul qilindi!</b>")
+    else:
+        # Bu taklif
+        if len(message.text.strip()) < 10:
+            await message.answer("❌ Taklif juda qisqa! Kamida 10 belgi yozing.")
+            return
+        await db.add_suggestion(message.from_user.id, message.text.strip())
+        await message.answer("✅ <b>Taklifingiz qabul qilindi!</b>")
+        for admin_id in ADMINS:
+            try: await bot.send_message(admin_id, f"💬 <b>Yangi taklif</b>\n\n👤 {message.from_user.full_name}\n🆔 {message.from_user.id}\n📝 {message.text[:500]}")
+            except: pass
+    await state.clear()
+
+# ================= VIP FUNCTIONS =================
+@dp.callback_query(F.data == "become_vip")
+async def become_vip(callback: CallbackQuery):
+    text = f"👑 <b>VIP a'zolik</b> 👑\n\n"
+    text += f"💰 <b>Narxi:</b> {VIP_PRICE} so'm / 30 kun\n\n"
+    text += "📋 <b>VIP afzalliklari:</b>\n"
+    text += "• 🔓 Barcha VIP kontentlarni ko'rish\n"
+    text += "• 🎬 VIP animelarni tomosha qilish\n"
+    text += "• 📀 VIP qismlarni ko'rish\n"
+    text += "• ⭐ Yangiliklardan birinchi bo'lib xabardor bo'lish\n"
+    text += "• 🎁 Maxsus aksiyalar va sovg'alar\n\n"
+    text += "💳 <b>To'lov qilish uchun:</b>\n\n"
+    text += f"📞 {PHONE_NUMBER_1}\n"
+    text += f"📞 {PHONE_NUMBER_2}\n\n"
+    text += f"💳 {CARD_NUMBER}\n\n"
+    text += "⬇️ Pul o'tkazgandan so'ng <b>✅ To'lov qildim</b> tugmasini bosing"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ To'lov qildim", callback_data="vip_paid")],
+        [InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start")]
+    ])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+@dp.callback_query(F.data == "vip_paid")
+async def vip_paid(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        "📞 <b>Pul o'tkazgan telefon raqamingizni yuboring:</b>\n\nMasalan: +998901234567\n\n🔙 Bekor qilish: /cancel"
+    )
+    await state.set_state(VIPStates.waiting_phone)
+    await callback.answer()
+
+@dp.message(VIPStates.waiting_phone)
+async def vip_phone(message: Message, state: FSMContext):
+    phone = message.text.strip()
+    if not re.match(r'^\+998\d{9}$', phone):
+        await message.answer("❌ Noto'g'ri format! +998XXXXXXXXX ko'rinishida yuboring.")
+        return
+    
+    await state.update_data(phone=phone)
+    await message.answer("🖼 <b>To'lov chekini yuboring</b> (rasm):\n\nPul o'tkazganligingizni tasdiqlovchi screenshot yoki rasmni yuboring.")
+    await state.set_state(VIPStates.waiting_proof)
+
+@dp.message(VIPStates.waiting_proof, F.photo)
+async def vip_proof(message: Message, state: FSMContext):
+    data = await state.get_data()
+    phone = data.get("phone")
+    photo = message.photo[-1]
+    
+    request_id = await db.add_vip_request(message.from_user.id, phone, VIP_PRICE, photo.file_id)
+    
+    for admin_id in ADMINS:
+        try:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"approve_vip_{request_id}"),
+                 InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_vip_{request_id}")]
+            ])
+            text = f"👑 <b>Yangi VIP so'rovi</b>\n\n👤 {message.from_user.full_name}\n🆔 {message.from_user.id}\n📞 {phone}\n💰 {VIP_PRICE} so'm"
+            await bot.send_photo(admin_id, photo=photo.file_id, caption=text, reply_markup=keyboard)
+        except Exception as e:
+            logger.error(f"Admin message failed: {e}")
+    
+    await message.answer(
+        f"✅ <b>So'rovingiz qabul qilindi!</b>\n\nAdminlar tomonidan tekshirilgandan so'ng VIP a'zolik faollashtiriladi.\n⏳ Bu odatda 5-10 daqiqa vaqt oladi.\n\n📢 Kanalimizga obuna bo'ling: {MAIN_CHANNEL}"
+    )
+    await state.clear()
+
+@dp.callback_query(F.data.startswith("approve_vip_"))
+async def approve_vip(callback: CallbackQuery):
+    if callback.from_user.id not in ADMINS:
+        await callback.answer("❌ Faqat bot egasi!", show_alert=True)
+        return
+    
+    request_id = int(callback.data.split("_")[2])
+    request = await db.get_vip_request(request_id)
+    
+    if request:
+        await db.set_vip(request["user_id"], 30)
+        await db.update_vip_request(request_id, "approved", callback.from_user.id)
+        
+        try:
+            if callback.message.photo:
+                await callback.message.edit_caption(caption=f"✅ VIP a'zolik tasdiqlandi!\n👤 Foydalanuvchi: {request['user_id']}")
+            else:
+                await callback.message.edit_text(f"✅ VIP a'zolik tasdiqlandi!\n👤 Foydalanuvchi: {request['user_id']}")
+        except:
+            await callback.message.answer(f"✅ VIP a'zolik tasdiqlandi!\n👤 Foydalanuvchi: {request['user_id']}")
+        
+        try:
+            await bot.send_message(request["user_id"], "🎉 <b>Tabriklaymiz!</b> Siz VIP a'zo bo'ldingiz!\n\n👑 Endi barcha VIP kontentlarni ko'rishingiz mumkin.\n📅 VIP muddati: 30 kun\n\n🔥 Botdan zavqlaning!")
+        except: pass
+    
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("reject_vip_"))
+async def reject_vip(callback: CallbackQuery):
+    if callback.from_user.id not in ADMINS:
+        await callback.answer("❌ Faqat bot egasi!", show_alert=True)
+        return
+    
+    request_id = int(callback.data.split("_")[2])
+    request = await db.get_vip_request(request_id)
+    
+    if request:
+        await db.update_vip_request(request_id, "rejected", callback.from_user.id)
+        
+        try:
+            if callback.message.photo:
+                await callback.message.edit_caption(caption=f"❌ VIP so'rovi rad etildi!\n👤 Foydalanuvchi: {request['user_id']}")
+            else:
+                await callback.message.edit_text(f"❌ VIP so'rovi rad etildi!\n👤 Foydalanuvchi: {request['user_id']}")
+        except:
+            await callback.message.answer(f"❌ VIP so'rovi rad etildi!\n👤 Foydalanuvchi: {request['user_id']}")
+        
+        try:
+            await bot.send_message(request["user_id"], f"❌ <b>Kechirasiz</b>, VIP so'rovingiz rad etildi.\n\n💡 Iltimos, to'lov ma'lumotlarini tekshirib, qaytadan urinib ko'ring.\n🆘 Yordam: {SUPPORT_USERNAME}")
+        except: pass
+    
+    await callback.answer()
+
+@dp.callback_query(F.data == "vip_media")
+async def vip_media(callback: CallbackQuery):
+    if not await db.is_vip(callback.from_user.id):
+        await callback.answer("❌ Bu bo'lim faqat VIP a'zolar uchun!", show_alert=True)
+        return
+    
+    media_list = await db.fetch_all("SELECT id,name,code,rating,image_url FROM media WHERE is_vip=1 ORDER BY name")
+    if not media_list:
+        await callback.message.edit_text("📭 Hozircha VIP media mavjud emas!", reply_markup=get_back_button())
+        await callback.answer()
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for media in media_list:
+        rating_val = media["rating"] if "rating" in media else 0
+        stars = "⭐" * min(5, int(rating_val / 2)) if rating_val > 0 else ""
+        builder.button(text=f"👑 {media['name']} [{media['code']}] {stars}", callback_data=f"view_media_{media['id']}")
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start"))
+    
+    await callback.message.edit_text(
+        f"👑 <b>VIP Media ro'yxati</b>\n\n📊 Jami: {len(media_list)} ta VIP media\n🔓 Barcha VIP kontentlar faqat VIP a'zolar uchun!",
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
+# ================= REFERRALS =================
+@dp.callback_query(F.data == "referral")
+async def referral_info(callback: CallbackQuery):
+    bot_info = await bot.get_me()
+    ref_link = f"https://t.me/{bot_info.username}?start=ref_{callback.from_user.id}"
+    count = await db.get_referral_count(callback.from_user.id)
+    
+    text = "🎁 <b>Referral dasturi</b>\n\n"
+    text += "Do'stlaringizni taklif qiling va sovg'alar yutib oling!\n\n"
+    text += f"🔗 <b>Sizning referral linkingiz:</b>\n"
+    text += f"<code>{ref_link}</code>\n\n"
+    text += f"👥 Taklif qilganlar: {count} ta\n"
+    text += "🎁 Har 5 ta taklif uchun 1 kun VIP!\n\n"
+    text += "⚡️ Do'stlaringizga ulashing va VIP bo'ling!"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 Ulashish", url=f"https://t.me/share/url?url={ref_link}&text=AniComplex botiga taklif qilaman!")],
+        [InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_start")]
+    ])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+# ================= SUGGESTIONS =================
+@dp.callback_query(F.data == "suggestion")
+async def suggestion_start(callback: CallbackQuery, state: FSMContext):
+    text = "💬 <b>Taklif va shikoyatlar</b>\n\n"
+    text += "Bot haqida taklif, shikoyat yoki yangi g'oyalaringizni yozib qoldiring.\n\n"
+    text += "📝 <b>Taklifingizni yozing:</b>\n"
+    text += "• Yangi funksiyalar\n"
+    text += "• Anime takliflari\n"
+    text += "• Xatoliklar haqida\n"
+    text += "• Umumiy fikrlar\n\n"
+    text += "🔙 Bekor qilish uchun /cancel"
+    
+    await callback.message.edit_text(text, reply_markup=get_back_button())
+    await state.set_state(SuggestionStates.waiting_suggestion)
+    await callback.answer()
+
+# ================= ADMIN PANEL =================
+@dp.callback_query(F.data == "admin_panel")
+async def admin_panel(callback: CallbackQuery):
+    if not await db.is_admin(callback.from_user.id):
+        await callback.answer("❌ Siz admin emassiz!", show_alert=True)
+        return
+    
+    stats = await db.get_stats()
+    text = f"🔐 <b>Admin Panel</b>\n\n"
+    text += f"👥 Foydalanuvchilar: {stats['users']}\n"
+    text += f"👑 Adminlar: {stats['admins']}\n"
+    text += f"🎬 Media: {stats['media']}\n"
+    text += f"📀 Qismlar: {stats['parts']}\n"
+    text += f"👑 VIP: {stats['vip_users']}\n"
+    text += f"🟢 Ongoing: {stats['ongoing']}\n"
+    text += f"👁 Jami ko'rishlar: {format_number(stats['total_views'])}\n\n"
+    text += f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    
+    await callback.message.answer(text, reply_markup=get_admin_menu())
+    await callback.answer()
+
+# ================= ADMIN STATISTICS =================
+@dp.message(F.text == "📊 Statistika")
+async def admin_stats(message: Message):
+    if not await db.is_admin(message.from_user.id):
+        await message.answer("❌ Ruxsat yo'q!")
+        return
+    
+    stats = await db.get_stats()
+    text = f"📊 <b>Bot statistikasi</b>\n\n"
+    text += f"👥 Foydalanuvchilar: {stats['users']}\n"
+    text += f"👑 Adminlar: {stats['admins']}\n"
+    text += f"🎬 Media: {stats['media']}\n"
+    text += f"📀 Qismlar: {stats['parts']}\n"
+    text += f"👑 VIP: {stats['vip_users']}\n"
+    text += f"🟢 Ongoing: {stats['ongoing']}\n"
+    text += f"👁 Jami ko'rishlar: {format_number(stats['total_views'])}"
+    await message.answer(text)
+
+@dp.message(F.text == "📊 Daily stats")
+async def admin_daily_stats(message: Message):
+    if not await db.is_admin(message.from_user.id):
+        await message.answer("❌ Ruxsat yo'q!")
+        return
+    
+    stats = await db.get_daily_stats(7)
+    text = "📊 <b>Oxirgi 7 kunlik statistika</b>\n\n"
+    for stat in reversed(stats):
+        text += f"📅 {stat['date']}:\n"
+        text += f"   👥 Yangi: +{stat['new_users']}\n"
+        text += f"   📊 Faol: {stat['active_users']}\n"
+        text += f"   👁 Ko'rishlar: {stat['total_views']}\n"
+        text += f"   🎬 Yangi media: +{stat['new_media']}\n\n"
+    
+    await message.answer(text)
+
+# ================= ADMIN MEDIA MANAGEMENT =================
+@dp.message(F.text == "➕ Media qo'shish")
+async def add_media_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("📝 Anime nomini kiriting:\n🔙 Bekor qilish: /cancel")
+    await state.set_state(AdminStates.waiting_media_name)
+
+@dp.message(AdminStates.waiting_media_name)
+async def add_media_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await message.answer("🔢 Kod kiriting (faqat raqam, masalan: 1, 2, 3):")
+    await state.set_state(AdminStates.waiting_media_code)
+
+@dp.message(AdminStates.waiting_media_code)
+async def add_media_code(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        await state.update_data(code=code)
+        await message.answer("🎭 Janrlarini kiriting (vergul bilan):\nMisol: Jangari, Drama, Sarguzasht")
+        await state.set_state(AdminStates.waiting_media_genre)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.message(AdminStates.waiting_media_genre)
+async def add_media_genre(message: Message, state: FSMContext):
+    await state.update_data(genre=message.text)
+    await message.answer("🖼 Rasm URL yoki rasm yuboring (yoki /skip):")
+    await state.set_state(AdminStates.waiting_media_image)
+
+@dp.message(AdminStates.waiting_media_image, F.photo)
+async def add_media_image_photo(message: Message, state: FSMContext):
+    await state.update_data(image=message.photo[-1].file_id)
+    await message.answer("📝 Anime tavsifini kiriting (yoki /skip):")
+    await state.set_state(AdminStates.waiting_media_description)
+
+@dp.message(AdminStates.waiting_media_image, F.text)
+async def add_media_image_text(message: Message, state: FSMContext):
+    image = message.text if message.text != "/skip" else ""
+    await state.update_data(image=image)
+    await message.answer("📝 Anime tavsifini kiriting (yoki /skip):")
+    await state.set_state(AdminStates.waiting_media_description)
+
+@dp.message(AdminStates.waiting_media_description)
+async def add_media_description(message: Message, state: FSMContext):
+    desc = message.text if message.text != "/skip" else ""
+    await state.update_data(description=desc)
+    await message.answer(f"🎙 Ovoz beruvchi(lar)ni kiriting:\nMasalan: {AUTHOR_USERNAME}")
+    await state.set_state(AdminStates.waiting_media_voice)
+
+@dp.message(AdminStates.waiting_media_voice)
+async def add_media_voice(message: Message, state: FSMContext):
+    await state.update_data(voice=message.text)
+    await message.answer("💿 Sifatni kiriting:\nMasalan: 720p, 1080p, 480p")
+    await state.set_state(AdminStates.waiting_media_quality)
+
+@dp.message(AdminStates.waiting_media_quality)
+async def add_media_quality(message: Message, state: FSMContext):
+    await state.update_data(quality=message.text)
+    await message.answer("📅 Chiqarilgan yilini kiriting (yoki /skip):\nMasalan: 2024")
+    await state.set_state(AdminStates.waiting_media_year)
+
+@dp.message(AdminStates.waiting_media_year)
+async def add_media_year(message: Message, state: FSMContext):
+    year = message.text if message.text != "/skip" else None
+    if year and not str(year).isdigit():
+        await message.answer("❌ Faqat raqam kiriting yoki /skip")
+        return
+    await state.update_data(year=int(year) if year and year.isdigit() else None)
+    await save_new_media(message, state)
+
+async def save_new_media(message: Message, state: FSMContext):
+    data = await state.get_data()
+    success, result = await db.add_media(
+        code=data["code"], name=data["name"], genre=data["genre"],
+        image_url=data.get("image", ""), description=data.get("description", ""),
+        voice=data.get("voice", AUTHOR_USERNAME), quality=data.get("quality", "720p"),
+        release_year=data.get("year"), is_vip=False
+    )
+    if success:
+        media_id = result
+        await message.answer(f"✅ <b>{data['name']}</b> qo'shildi!\n🔢 Kod: <code>{data['code']}</code>\n🎭 Janr: {data['genre']}")
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Kanalga post qilish", callback_data=f"post_media_{media_id}")],
+            [InlineKeyboardButton(text="❌ Keyinroq", callback_data="cancel_post")]
+        ])
+        await message.answer("📢 Bu mediani kanalga post qilasizmi?", reply_markup=keyboard)
+    else:
+        await message.answer(f"❌ {result}")
+    await state.clear()
+
+# ================= ADMIN MEDIA POST =================
+@dp.callback_query(F.data.startswith("post_media_"))
+async def post_media_start(callback: CallbackQuery, state: FSMContext):
+    media_id = int(callback.data.split("_")[2])
+    media = await db.get_media_by_id(media_id)
+    if not media: await callback.answer("Media topilmadi!"); return
+    
+    await state.update_data(media_id=media_id)
+    await callback.message.edit_text(
+        f"📢 <b>Post qilinadigan kanal username'ini kiriting:</b>\n\n"
+        f"Masalan: @AniComplex_Rasmiy\n\n⚠️ Bot kanalda admin bo'lishi shart!\n\n🔙 /cancel"
+    )
+    await state.set_state(AdminStates.waiting_post_channel)
+    await callback.answer()
+
+@dp.message(AdminStates.waiting_post_channel)
+async def post_media_channel(message: Message, state: FSMContext):
+    channel = message.text.strip()
+    if not channel.startswith("@"): channel = "@" + channel
+    
+    try:
+        member = await bot.get_chat_member(channel, bot.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            await message.answer("❌ Bot kanalda admin emas! Avval botni admin qiling."); return
+    except Exception as e: await message.answer(f"❌ Kanal topilmadi!\nXato: {e}"); return
+    
+    data = await state.get_data()
+    media = await db.get_media_by_id(data.get("media_id"))
+    if not media: await message.answer("❌ Media topilmadi!"); await state.clear(); return
+    
+    text = format_media_info(media)
+    bot_info = await bot.get_me()
+    watch_link = f"https://t.me/{bot_info.username}?start=code_{media['code']}"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📺 Tomosha qilish", url=watch_link)],
+        [InlineKeyboardButton(text="📢 Kanal", url=f"https://t.me/{MAIN_CHANNEL.replace('@', '')}")]
+    ])
+    
+    try:
+        if media["image_url"]: msg = await bot.send_photo(channel, media["image_url"], caption=text, reply_markup=keyboard)
+        else: msg = await bot.send_message(channel, text, reply_markup=keyboard)
+        await db.update_media_post_info(media["id"], msg.message_id, channel)
+        await message.answer(f"✅ Media {channel} kanaliga post qilindi!")
+    except Exception as e: await message.answer(f"❌ Post qilishda xatolik: {e}")
+    await state.clear()
+
+@dp.callback_query(F.data == "cancel_post")
+async def cancel_post(callback: CallbackQuery):
+    await callback.message.edit_text("✅ Media saqlandi, post qilinmadi.")
+    await callback.answer()
+
+# ================= ADMIN MEDIA EDIT =================
+@dp.message(F.text == "✏️ Media tahrirlash")
+async def edit_media_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("🔢 Tahrirlamoqchi bo'lgan media kodini kiriting:")
+    await state.set_state(EditMediaStates.waiting_media_select)
+
+@dp.message(EditMediaStates.waiting_media_select)
+async def edit_media_select(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi!"); return
+        await state.update_data(media_id=media["id"], media_name=media["name"])
+        await message.answer(f"✏️ <b>{media['name']}</b> tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?", reply_markup=get_media_edit_menu())
+        await state.set_state(EditMediaStates.waiting_field)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.callback_query(EditMediaStates.waiting_field, F.data.startswith("edit_"))
+async def edit_media_field(callback: CallbackQuery, state: FSMContext):
+    field = callback.data.split("_")[1]
+    field_names = {"name": "yangi nomini", "code": "yangi kodni", "genre": "yangi janrlarini", "status": "yangi holatini (ongoing/completed/hiatus)", "image": "yangi rasm URL yoki rasm yuboring", "description": "yangi tavsifini", "voice": "yangi ovoz(lar)ni", "quality": "yangi sifatni", "vip": "VIP holatini (0/1)", "year": "yangi yilni"}
+    await state.update_data(edit_field=field)
+    await callback.message.edit_text(f"✏️ {field_names.get(field, 'yangi qiymatini')} kiriting:")
+    await state.set_state(EditMediaStates.waiting_value)
+    await callback.answer()
+
+@dp.callback_query(F.data == "cancel_edit")
+async def cancel_edit(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("❌ Tahrirlash bekor qilindi!")
+    await callback.answer()
+
+@dp.message(EditMediaStates.waiting_value, F.photo)
+async def edit_media_value_photo(message: Message, state: FSMContext):
+    data = await state.get_data()
+    if data.get("edit_field") == "image":
+        await db.update_media(data["media_id"], "image_url", message.photo[-1].file_id)
+        await message.answer("✅ Rasm yangilandi!")
+    await state.clear()
+
+@dp.message(EditMediaStates.waiting_value, F.text)
+async def edit_media_value_text(message: Message, state: FSMContext):
+    data = await state.get_data()
+    media_id, field, value = data["media_id"], data["edit_field"], message.text.strip()
+    
+    if field == "code":
+        try:
+            code = int(value)
+            if await db.fetch_one("SELECT id FROM media WHERE code=? AND id!=?", (code, media_id)):
+                await message.answer("❌ Bunday kod mavjud!"); return
+            await db.update_media(media_id, "code", code)
+            await message.answer(f"✅ Kod {code} ga o'zgartirildi!")
+        except ValueError: await message.answer("❌ Faqat raqam kiriting!"); return
+    elif field == "status":
+        if value not in ["ongoing", "completed", "hiatus"]:
+            await message.answer("❌ ongoing/completed/hiatus bo'lishi kerak!"); return
+        await db.update_media(media_id, "status", value)
+        await message.answer(f"✅ Holat '{value}' ga o'zgartirildi!")
+    elif field == "vip":
+        if value in ["0", "1"]:
+            await db.update_media(media_id, "is_vip", int(value))
+            await message.answer(f"✅ VIP holati {'yoqilgan' if value=='1' else 'ochirilgan'}!")
+        else: await message.answer("❌ 0 yoki 1 kiriting!"); return
+    elif field == "year":
+        try:
+            await db.update_media(media_id, "release_year", int(value))
+            await message.answer(f"✅ Yil {value} ga o'zgartirildi!")
+        except ValueError: await message.answer("❌ Faqat raqam kiriting!"); return
+    else:
+        await db.update_media(media_id, field, value)
+        await message.answer(f"✅ {field} o'zgartirildi!")
+    await state.clear()
+
+# ================= ADMIN MEDIA DELETE =================
+@dp.message(F.text == "🗑 Media o'chirish")
+async def delete_media_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("🔢 O'chirmoqchi bo'lgan media kodini kiriting:")
+    await state.set_state(AdminStates.waiting_delete_confirm)
+
+@dp.message(AdminStates.waiting_delete_confirm)
+async def delete_media_confirm(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi!"); await state.clear(); return
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Ha, o'chirish", callback_data=f"confirm_delete_media_{media['id']}"),
+             InlineKeyboardButton(text="❌ Yo'q", callback_data="cancel_delete")]
+        ])
+        await message.answer(
+            f"⚠️ <b>{media['name']}</b> ni o'chirmoqchimisiz?\n\n🔢 Kod: {media['code']}\n📀 Qismlar: {media['total_parts']} ta\n\n❗️ BU AMALNI QAYTARIB BO'LMAYDI!",
+            reply_markup=keyboard
+        )
+        await state.update_data(media_id=media["id"])
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!"); await state.clear()
+
+@dp.callback_query(F.data.startswith("confirm_delete_media_"))
+async def confirm_delete_media(callback: CallbackQuery, state: FSMContext):
+    media_id = int(callback.data.split("_")[3])
+    media = await db.get_media_by_id(media_id)
+    if media: await db.delete_media(media_id); await callback.message.edit_text(f"✅ <b>{media['name']}</b> o'chirildi!")
+    else: await callback.message.edit_text("❌ Media topilmadi!")
+    await state.clear(); await callback.answer()
+
+@dp.callback_query(F.data == "cancel_delete")
+async def cancel_delete(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("❌ O'chirish bekor qilindi!")
+    await callback.answer()
+
+@dp.message(F.text == "📢 Media post qilish")
+async def post_media_menu(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("🔢 Post qilmoqchi bo'lgan media kodini kiriting:")
+    await state.set_state(PostStates.waiting_confirm)
+
+@dp.message(PostStates.waiting_confirm)
+async def post_media_select(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi!"); await state.clear(); return
+        await state.update_data(media_id=media["id"])
+        await message.answer(f"📢 <b>Kanal username'ini kiriting:</b>\n\nMasalan: @AniComplex_Rasmiy\n\n⚠️ Bot kanalda admin bo'lishi shart!")
+        await state.set_state(AdminStates.waiting_post_channel)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!"); await state.clear()
+
+# ================= ADMIN PARTS MANAGEMENT =================
+@dp.message(F.text == "📀 Qism qo'shish")
+async def add_part_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("🔢 Media kodini kiriting:\n🔙 Bekor qilish: /cancel")
+    await state.set_state(AdminStates.waiting_part_media)
+
+@dp.message(AdminStates.waiting_part_media)
+async def add_part_media(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi! Qayta kiriting:"); return
+        await state.update_data(media_id=media["id"], media_name=media["name"], media_code=code)
+        await message.answer(f"📺 {media['name']}\n\n📀 Qism raqamini kiriting:")
+        await state.set_state(AdminStates.waiting_part_number)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.message(AdminStates.waiting_part_number)
+async def add_part_number(message: Message, state: FSMContext):
+    try:
+        part_num = int(message.text.strip())
+        data = await state.get_data()
+        if await db.get_part_by_number(data["media_id"], part_num):
+            await message.answer(f"⚠️ {part_num}-qism mavjud! Boshqa raqam kiriting:"); return
+        await state.update_data(part_number=part_num)
+        await message.answer(f"🎬 {part_num}-qism videosini yuboring:")
+        await state.set_state(AdminStates.waiting_part_video)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.message(AdminStates.waiting_part_video, F.video)
+async def add_part_video(message: Message, state: FSMContext):
+    data = await state.get_data()
+    part_id = await db.add_part(
+        media_id=data["media_id"], part_number=data["part_number"],
+        file_id=message.video.file_id, caption=message.caption or "",
+        duration=message.video.duration or 0, file_size=message.video.file_size or 0
+    )
+    await message.answer(f"✅ <b>{data['media_name']}</b> ning <b>{data['part_number']}-qismi</b> qo'shildi!\n\n🔔 Bildirishnoma yoqilganlarga xabar yuborildi.")
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Kanalga post qilish", callback_data=f"post_part_{part_id}")],
+        [InlineKeyboardButton(text="❌ Keyinroq", callback_data="cancel_post")]
+    ])
+    await message.answer("📢 Bu qismni kanalga post qilasizmi?", reply_markup=keyboard)
+    await state.clear()
+
+# ================= ADMIN PART POST =================
+@dp.callback_query(F.data.startswith("post_part_"))
+async def post_part_start(callback: CallbackQuery, state: FSMContext):
+    if callback.data.startswith("post_part_select_"): return
+    
+    try:
+        parts = callback.data.split("_")
+        if len(parts) >= 3 and parts[2].isdigit(): part_id = int(parts[2])
+        else: await callback.answer("❌ Noto'g'ri format!", show_alert=True); return
+    except: await callback.answer("❌ Xatolik!", show_alert=True); return
+    
+    part = await db.get_part(part_id)
+    if not part: await callback.answer("Qism topilmadi!"); return
+    
+    await state.update_data(part_id=part_id)
+    await callback.message.edit_text(f"📢 <b>Post qilinadigan kanal username'ini kiriting:</b>\n\nMasalan: @AniComplex_Rasmiy\n\n⚠️ Bot kanalda admin bo'lishi shart!\n\n🔙 /cancel")
+    await state.set_state(AdminStates.waiting_part_post)
+    await callback.answer()
+
+@dp.message(AdminStates.waiting_part_post)
+async def post_part_channel(message: Message, state: FSMContext):
+    channel = message.text.strip()
+    if not channel.startswith("@"): channel = "@" + channel
+    
+    try:
+        member = await bot.get_chat_member(channel, bot.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            await message.answer("❌ Bot kanalda admin emas!"); return
+    except: await message.answer("❌ Kanal topilmadi!"); return
+    
+    data = await state.get_data()
+    part = await db.get_part(data.get("part_id"))
+    if not part: await message.answer("❌ Qism topilmadi!"); await state.clear(); return
+    
+    media = await db.get_media_by_id(part["media_id"])
+    bot_info = await bot.get_me()
+    watch_link = f"https://t.me/{bot_info.username}?start=part_{part['id']}"
+    
+    text = f"🎬 <b>{media['name']}</b>\n📀 <b>{part['part_number']}-qism</b>\n"
+    if part["caption"]: text += f"\n{part['caption']}\n"
+    text += f"\n🔢 Kod: <code>{media['code']}</code>"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📺 Tomosha qilish", url=watch_link)],
+        [InlineKeyboardButton(text="📢 Kanal", url=f"https://t.me/{MAIN_CHANNEL.replace('@', '')}")]
+    ])
+    
+    try:
+        msg = await bot.send_video(channel, part["file_id"], caption=text, reply_markup=keyboard)
+        await db.update_part_post_info(part["id"], msg.message_id, channel)
+        await message.answer(f"✅ Qism {channel} kanaliga post qilindi!")
+    except Exception as e: await message.answer(f"❌ Post qilishda xatolik: {e}")
+    await state.clear()
+
+# ================= ADMIN PART EDIT =================
+@dp.message(F.text == "✏️ Qism tahrirlash")
+async def edit_part_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await state.update_data(action="edit")
+    await message.answer("🔢 Tahrirlamoqchi bo'lgan media kodini kiriting:\n🔙 /cancel")
+    await state.set_state(EditPartStates.waiting_media_select)
+
+@dp.message(EditPartStates.waiting_media_select)
+async def edit_part_media_select(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi!"); return
+        
+        data = await state.get_data()
+        action = data.get("action", "edit")
+        await state.update_data(media_id=media["id"], media_name=media["name"])
+        
+        parts = await db.get_parts(media["id"], True)
+        if not parts: await message.answer("❌ Bu mediada qismlar mavjud emas!"); await state.clear(); return
+        
+        builder = InlineKeyboardBuilder()
+        for part in parts:
+            vip = "👑 " if part["is_vip"] else ""
+            part_id = part["id"]
+            if action == "post": cb = f"post_part_select_{part_id}"
+            elif action == "delete": cb = f"delete_part_select_{part_id}"
+            else: cb = f"edit_part_select_{part_id}"
+            builder.button(text=f"{vip}{part['part_number']}-qism", callback_data=cb)
+        builder.adjust(3)
+        builder.row(InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="cancel_edit"))
+        
+        action_text = {"edit": "tahrirlamoqchisiz", "delete": "o'chirmoqchisiz", "post": "post qilmoqchisiz"}.get(action, "tanlamoqchisiz")
+        await message.answer(f"📺 <b>{media['name']}</b>\n\nQaysi qismni {action_text}?", reply_markup=builder.as_markup())
+        await state.set_state(EditPartStates.waiting_part_select)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.callback_query(F.data.startswith("edit_part_select_"))
+async def edit_part_select(callback: CallbackQuery, state: FSMContext):
+    try: part_id = int(callback.data.split("_")[3])
+    except: await callback.answer("❌ Xatolik!", show_alert=True); return
+    
+    part = await db.get_part(part_id)
+    if not part: await callback.answer("Qism topilmadi!"); return
+    
+    await state.update_data(part_id=part_id, part_number=part["part_number"])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📹 Video", callback_data="edit_part_video"),
+         InlineKeyboardButton(text="📝 Caption", callback_data="edit_part_caption")],
+        [InlineKeyboardButton(text="🔢 Qism raqami", callback_data="edit_part_number"),
+         InlineKeyboardButton(text="👑 VIP", callback_data="edit_part_vip")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="cancel_edit")]
+    ])
+    
+    await callback.message.edit_text(f"✏️ {part['part_number']}-qismni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?", reply_markup=keyboard)
+    await state.set_state(EditPartStates.waiting_field)
+    await callback.answer()
+
+@dp.callback_query(EditPartStates.waiting_field, F.data.startswith("edit_part_"))
+async def edit_part_field(callback: CallbackQuery, state: FSMContext):
+    field = callback.data.split("_")[2]
+    field_names = {"video": "yangi videoni", "caption": "yangi caption ni", "number": "yangi qism raqamini", "vip": "VIP holatini (0 yoki 1)"}
+    await state.update_data(edit_field=field)
+    await callback.message.edit_text(f"✏️ {field_names.get(field, 'yangi qiymatini')} kiriting:")
+    await state.set_state(EditPartStates.waiting_value)
+    await callback.answer()
+
+@dp.message(EditPartStates.waiting_value, F.video)
+async def edit_part_value_video(message: Message, state: FSMContext):
+    data = await state.get_data()
+    if data.get("edit_field") == "video":
+        await db.update_part(data["part_id"], "file_id", message.video.file_id)
+        await message.answer("✅ Video yangilandi!")
+    await state.clear()
+
+@dp.message(EditPartStates.waiting_value, F.text)
+async def edit_part_value_text(message: Message, state: FSMContext):
+    data = await state.get_data()
+    part_id, field, value = data["part_id"], data["edit_field"], message.text.strip()
+    
+    if field == "number":
+        try:
+            new_num = int(value)
+            part = await db.get_part(part_id)
+            existing = await db.get_part_by_number(part["media_id"], new_num)
+            if existing and existing["id"] != part_id:
+                await message.answer(f"⚠️ {new_num}-qism mavjud!"); return
+            await db.update_part(part_id, "part_number", new_num)
+            await message.answer(f"✅ Qism raqami {new_num} ga o'zgartirildi!")
+        except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+    elif field == "caption":
+        await db.update_part(part_id, "caption", value)
+        await message.answer("✅ Caption yangilandi!")
+    elif field == "vip":
+        if value in ["0", "1"]:
+            await db.update_part(part_id, "is_vip", int(value))
+            await message.answer(f"✅ VIP holati {'yoqilgan' if value=='1' else 'ochirilgan'}!")
+        else: await message.answer("❌ 0 yoki 1 kiriting!")
+    await state.clear()
+
+# ================= ADMIN PART DELETE =================
+@dp.message(F.text == "🗑 Qism o'chirish")
+async def delete_part_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await state.update_data(action="delete")
+    await message.answer("🔢 Media kodini kiriting:\n🔙 /cancel")
+    await state.set_state(EditPartStates.waiting_media_select)
+
+@dp.message(EditPartStates.waiting_media_select)
+async def delete_part_media_select(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi!"); return
+        
+        await state.update_data(media_id=media["id"], media_name=media["name"])
+        parts = await db.get_parts(media["id"], True)
+        if not parts: await message.answer("❌ Bu mediada qismlar mavjud emas!"); await state.clear(); return
+        
+        part_numbers = sorted([str(p["part_number"]) for p in parts], key=int)
+        await message.answer(
+            f"📺 <b>{media['name']}</b>\n\n📀 Mavjud qismlar: {', '.join(part_numbers)}\n\n"
+            f"🗑 <b>O'chirmoqchi bo'lgan qism raqamlarini kiriting:</b>\n\n"
+            f"📌 Format: 1,2,3,4 yoki 1-5 yoki 1,3,5-7\n🔙 /cancel",
+            reply_markup=get_back_button()
+        )
+        await state.set_state(EditPartStates.waiting_part_select)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.message(EditPartStates.waiting_part_select, F.text)
+async def delete_parts_by_numbers(message: Message, state: FSMContext):
+    data = await state.get_data()
+    media_id = data.get("media_id")
+    if not media_id: await message.answer("❌ Media topilmadi!"); await state.clear(); return
+    
+    try: part_numbers = parse_part_numbers(message.text.strip().replace(" ", ""))
+    except ValueError as e: await message.answer(f"❌ Noto'g'ri format: {e}\n\nTo'g'ri: 1,2,3,4 yoki 1-5"); return
+    
+    if not part_numbers: await message.answer("❌ Hech qanday qism raqami topilmadi!"); return
+    
+    existing = {p["part_number"] for p in await db.get_parts(media_id, True)}
+    valid = sorted([n for n in part_numbers if n in existing])
+    invalid = [n for n in part_numbers if n not in existing]
+    
+    if not valid: await message.answer(f"❌ Kiritilgan qismlar mavjud emas!\n\nMavjud: {', '.join(map(str, sorted(existing)))}"); return
+    
+    text = f"⚠️ <b>{data.get('media_name')}</b>\n\n🗑 O'chiriladigan: {', '.join(map(str, valid))}\n📊 Jami: {len(valid)} ta"
+    if invalid: text += f"\n⚠️ Topilmagan: {', '.join(map(str, invalid))}"
+    text += "\n\n❗️ BU AMALNI QAYTARIB BO'LMAYDI!\n\nTasdiqlaysizmi?"
+    
+    await state.update_data(delete_part_numbers=valid)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Ha, o'chirish", callback_data="confirm_delete_parts"),
+         InlineKeyboardButton(text="❌ Yo'q", callback_data="cancel_delete")]
+    ])
+    await message.answer(text, reply_markup=keyboard)
+
+def parse_part_numbers(text: str) -> list:
+    numbers = set()
+    for part in text.split(","):
+        part = part.strip()
+        if not part: continue
+        if "-" in part:
+            start, end = part.split("-")
+            for i in range(int(start), int(end) + 1): numbers.add(i)
+        else: numbers.add(int(part))
+    return sorted(list(numbers))
+
+@dp.callback_query(F.data == "confirm_delete_parts")
+async def confirm_delete_parts(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    media_id, part_numbers = data.get("media_id"), data.get("delete_part_numbers", [])
+    if not media_id or not part_numbers: await callback.message.edit_text("❌ Ma'lumot topilmadi!"); await state.clear(); return
+    
+    deleted = 0
+    for pnum in part_numbers:
+        part = await db.get_part_by_number(media_id, pnum)
+        if part and await db.delete_part(part["id"]): deleted += 1
+    
+    await callback.message.edit_text(f"✅ <b>Qismlar o'chirildi!</b>\n\n✅ O'chirilgan: {deleted} ta\n📊 Jami: {len(part_numbers)} ta")
+    await state.clear(); await callback.answer()
+
+@dp.message(F.text == "📢 Qism post qilish")
+async def post_part_menu(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await state.update_data(action="post")
+    await message.answer("🔢 Media kodini kiriting:\n🔙 /cancel")
+    await state.set_state(EditPartStates.waiting_media_select)
+
+@dp.callback_query(F.data.startswith("post_part_select_"))
+async def post_part_select(callback: CallbackQuery, state: FSMContext):
+    try:
+        parts = callback.data.split("_")
+        if len(parts) >= 4 and parts[3].isdigit(): part_id = int(parts[3])
+        else: await callback.answer("❌ Noto'g'ri format!", show_alert=True); return
+    except: await callback.answer("❌ Xatolik!", show_alert=True); return
+    
+    await state.update_data(part_id=part_id)
+    await callback.message.edit_text(f"📢 <b>Post qilinadigan kanal username'ini kiriting:</b>\n\nMasalan: @AniComplex_Rasmiy\n\n⚠️ Bot kanalda admin bo'lishi shart!")
+    await state.set_state(AdminStates.waiting_part_post)
+    await callback.answer()
+
+# ================= ADMIN VIP MANAGEMENT =================
+@dp.message(F.text == "👑 VIP so'rovlar")
+async def admin_vip_requests(message: Message):
+    if not await db.is_admin(message.from_user.id):
+        await message.answer("❌ Ruxsat yo'q!"); return
+    
+    requests = await db.get_vip_requests("pending")
+    if not requests: await message.answer("📭 Kutilayotgan VIP so'rovlar yo'q"); return
+    
+    text = "👑 <b>Kutilayotgan VIP so'rovlar</b>\n\n"
+    for req in requests[:10]:
+        text += f"🆔 So'rov ID: <code>{req['id']}</code>\n👤 Foydalanuvchi: <code>{req['user_id']}</code>\n📞 Tel: {req['phone_number']}\n💰 {req['amount']} so'm\n📅 {req['created_at'][:10]}\n\n"
+    await message.answer(text)
+
+@dp.message(F.text == "👑 VIP berish")
+async def give_vip_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id):
+        await message.answer("❌ Ruxsat yo'q!"); return
+    await message.answer("👤 VIP bermoqchi bo'lgan foydalanuvchi ID sini kiriting:")
+    await state.set_state(AdminStates.waiting_vip_user_id)
+
+@dp.message(AdminStates.waiting_vip_user_id)
+async def give_vip_id(message: Message, state: FSMContext):
+    try:
+        user_id = int(message.text.strip())
+        await state.update_data(user_id=user_id)
+        await message.answer("📅 VIP muddatini kiriting (kun):\nMasalan: 30")
+        await state.set_state(AdminStates.waiting_vip_days)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.message(AdminStates.waiting_vip_days)
+async def give_vip_days(message: Message, state: FSMContext):
+    try:
+        days = int(message.text.strip())
+        data = await state.get_data()
+        await db.set_vip(data["user_id"], days)
+        await message.answer(f"✅ Foydalanuvchi {data['user_id']} ga {days} kun VIP berildi!")
+        try: await bot.send_message(data["user_id"], f"🎉 <b>Tabriklaymiz!</b> Sizga {days} kun VIP a'zolik berildi!\n\n👑 Endi barcha VIP kontentlarni ko'rishingiz mumkin.")
+        except: pass
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+    await state.clear()
+
+@dp.message(F.text == "👑 VIP olib tashlash")
+async def remove_vip_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id):
+        await message.answer("❌ Ruxsat yo'q!"); return
+    await message.answer("👤 VIP olib tashlamoqchi bo'lgan foydalanuvchi ID sini kiriting:")
+    await state.set_state(AdminStates.waiting_remove_vip_user_id)
+
+@dp.message(AdminStates.waiting_remove_vip_user_id)
+async def remove_vip_id(message: Message, state: FSMContext):
+    try:
+        user_id = int(message.text.strip())
+        await db.remove_vip(user_id)
+        await message.answer(f"✅ Foydalanuvchi {user_id} dan VIP olib tashlandi!")
+        try: await bot.send_message(user_id, f"❌ Sizdan VIP a'zolik olib tashlandi.\n\n💡 Qayta VIP bo'lish uchun /start -> VIP bo'lish")
+        except: pass
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+    await state.clear()
+
+# ================= ADMIN MANAGEMENT =================
+@dp.message(F.text == "👥 Admin qo'shish")
+async def add_admin_start(message: Message, state: FSMContext):
+    if not await db.is_owner(message.from_user.id):
+        await message.answer("❌ Faqat bot egasi admin qo'sha oladi!"); return
+    await message.answer("👤 Admin qilmoqchi bo'lgan foydalanuvchi ID sini kiriting:")
+    await state.set_state(AdminStates.waiting_add_admin_id)
+
+@dp.message(AdminStates.waiting_add_admin_id)
+async def add_admin_id(message: Message, state: FSMContext):
+    try:
+        user_id = int(message.text.strip())
+        await db.add_admin(user_id, message.from_user.id)
+        await message.answer(f"✅ Foydalanuvchi {user_id} admin qilib tayinlandi!")
+        try: await bot.send_message(user_id, "🎉 Siz admin etib tayinlandingiz! Botni boshqarish huquqiga egasiz.\n\n🔐 Admin panel: /start -> Admin panel")
+        except: pass
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+    await state.clear()
+
+@dp.message(F.text == "👥 Admin o'chirish")
+async def remove_admin_start(message: Message, state: FSMContext):
+    if not await db.is_owner(message.from_user.id):
+        await message.answer("❌ Faqat bot egasi admin o'chira oladi!"); return
+    await message.answer("👤 Adminlikdan o'chirmoqchi bo'lgan foydalanuvchi ID sini kiriting:")
+    await state.set_state(AdminStates.waiting_remove_admin_id)
+
+@dp.message(AdminStates.waiting_remove_admin_id)
+async def remove_admin_id(message: Message, state: FSMContext):
+    try:
+        user_id = int(message.text.strip())
+        if user_id in ADMINS: await message.answer("❌ Ownerlarni o'chirib bo'lmaydi!"); await state.clear(); return
+        if await db.remove_admin(user_id): await message.answer(f"✅ Foydalanuvchi {user_id} adminlikdan o'chirildi!")
+        else: await message.answer(f"⚠️ Foydalanuvchi {user_id} admin emas!")
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+    await state.clear()
+
+# ================= FORCED CHANNELS MANAGEMENT =================
+@dp.message(F.text == "🔗 Majburiy kanal")
+async def forced_channels_menu(message: Message):
+    if not await db.is_admin(message.from_user.id):
+        await message.answer("❌ Ruxsat yo'q!"); return
+    
+    channels = await db.get_all_forced_channels()
+    text = "🔗 <b>Majburiy kanallar</b>\n\n"
+    if channels:
+        for ch in channels:
+            status = "✅" if ch["is_active"] else "❌"
+            text += f"{status} {ch['channel_username']}\n"
+    else: text += "📭 Hozircha majburiy kanallar yo'q\n\n"
+    text += "\n📌 <b>Qo'shish:</b> <code>/add_channel @kanal</code>\n📌 <b>O'chirish:</b> <code>/remove_channel @kanal</code>"
+    await message.answer(text)
+
+@dp.message(Command("add_channel"))
+async def add_channel(message: Message):
+    if not await db.is_admin(message.from_user.id): return
+    args = message.text.split()
+    if len(args) < 2: await message.answer("❌ /add_channel @kanal"); return
+    
+    ch_input = args[1].strip()
+    if ch_input.startswith("https://t.me/"):
+        username = ch_input.split("/")[-1].split("?")[0]
+        ch_username, ch_link = "@" + username, ch_input
+    elif ch_input.startswith("@"): ch_username, ch_link = ch_input, "https://t.me/" + ch_input.replace("@", "")
+    else: ch_username, ch_link = "@" + ch_input, "https://t.me/" + ch_input
+    
+    try:
+        member = await bot.get_chat_member(ch_username, bot.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            await message.answer("❌ Bot kanalda admin bo'lishi kerak!"); return
+    except: await message.answer("❌ Kanal topilmadi yoki bot admin emas!"); return
+    
+    await db.add_forced_channel(ch_username, ch_link, message.from_user.id)
+    await message.answer(f"✅ {ch_username} majburiy kanallar ro'yxatiga qo'shildi!")
+
+@dp.message(Command("remove_channel"))
+async def remove_channel(message: Message):
+    if not await db.is_admin(message.from_user.id): return
+    args = message.text.split()
+    if len(args) < 2: await message.answer("❌ /remove_channel @kanal"); return
+    
+    ch_input = args[1].strip()
+    ch_username = ch_input if ch_input.startswith("@") else "@" + ch_input
+    
+    channels = await db.get_all_forced_channels()
+    for ch in channels:
+        if ch["channel_username"] == ch_username:
+            await db.remove_forced_channel(ch["id"])
+            await message.answer(f"✅ {ch_username} o'chirildi!"); return
+    await message.answer(f"❌ {ch_username} topilmadi!")
+
+# ================= ADMIN SUGGESTIONS & REPORTS =================
+@dp.message(F.text == "📝 Takliflar")
+async def admin_suggestions(message: Message):
+    if not await db.is_admin(message.from_user.id): return
+    suggestions = await db.get_suggestions("pending")
+    if not suggestions: await message.answer("📭 Kutilayotgan takliflar yo'q"); return
+    
+    text = "💬 <b>Kutilayotgan takliflar</b>\n\n"
+    for sug in suggestions[:5]:
+        text += f"🆔 ID: <code>{sug['user_id']}</code>\n📝 Taklif: {sug['suggestion'][:100]}...\n📅 {sug['created_at'][:10]}\n\n"
+    await message.answer(text)
+
+@dp.message(F.text == "⚠️ Shikoyatlar")
+async def admin_reports(message: Message):
+    if not await db.is_admin(message.from_user.id): return
+    reports = await db.get_reports("pending")
+    if not reports: await message.answer("📭 Kutilayotgan shikoyatlar yo'q"); return
+    
+    text = "⚠️ <b>Kutilayotgan shikoyatlar</b>\n\n"
+    for rep in reports[:5]:
+        media = await db.get_media_by_id(rep["media_id"])
+        text += f"🆔 ID: <code>{rep['user_id']}</code>\n🎬 Media: {media['name'] if media else 'Nomalum'}\n📝 Sabab: {rep['reason']}\n📅 {rep['created_at'][:10]}\n\n"
+    await message.answer(text)
+
+# ================= MULTIPLE PARTS UPLOAD =================
+@dp.message(F.text == "🎬 Ko'p qism qo'shish")
+async def multi_part_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("🔢 Media kodini kiriting:\n🔙 Bekor qilish: /cancel")
+    await state.set_state(AdminStates.waiting_multi_part_media)
+
+@dp.message(AdminStates.waiting_multi_part_media)
+async def multi_part_media(message: Message, state: FSMContext):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if not media: await message.answer("❌ Media topilmadi!"); return
+        
+        await db.create_multi_part_session(message.from_user.id, media["id"], media["name"])
+        await message.answer(
+            f"📺 <b>{media['name']}</b>\n\n🎬 <b>Ko'p qism qo'shish rejimi</b>\n\n"
+            f"📌 <b>QO'LLANMA:</b>\n"
+            f"1️⃣ Qism videosini yuboring\n"
+            f"2️⃣ Video captioniga qism raqamini yozing (masalan: 1)\n"
+            f"3️⃣ Bot qabul qilganini tasdiqlaydi\n"
+            f"4️⃣ Barcha qismlarni yuborgandan so'ng /done yuboring\n\n"
+            f"✅ Qabul qilingan qismlar soni: 0\n\n🔙 Bekor qilish: /cancel"
+        )
+        await state.set_state(MultiPartStates.waiting_video)
+    except ValueError: await message.answer("❌ Faqat raqam kiriting!")
+
+@dp.message(MultiPartStates.waiting_video, F.video)
+async def multi_part_video(message: Message, state: FSMContext):
+    session = await db.get_multi_part_session(message.from_user.id)
+    if not session: await message.answer("❌ Sessiya topilmadi!"); await state.clear(); return
+    
+    caption = message.caption or ""
+    match = re.search(r'^(\d+)', caption)
+    part_number = int(match.group(1)) if match else len(json.loads(session["parts_data"] or "[]")) + 1
+    
+    parts = json.loads(session["parts_data"] or "[]")
+    if any(p["part_number"] == part_number for p in parts):
+        await message.answer(f"⚠️ {part_number}-qism allaqachon qabul qilingan!"); return
+    if await db.get_part_by_number(session["media_id"], part_number):
+        await message.answer(f"⚠️ {part_number}-qism bazada mavjud!"); return
+    
+    await db.add_to_multi_part_session(message.from_user.id, part_number, message.video.file_id, caption)
+    session = await db.get_multi_part_session(message.from_user.id)
+    parts = json.loads(session["parts_data"] or "[]")
+    await message.answer(f"✅ <b>{part_number}-qism qabul qilindi!</b>\n\n📊 Jami: {len(parts)} ta qism\n\n➕ Davom eting yoki /done")
+
+@dp.message(MultiPartStates.waiting_video, Command("done"))
+async def multi_part_done(message: Message, state: FSMContext):
+    session = await db.get_multi_part_session(message.from_user.id)
+    if not session: await message.answer("❌ Sessiya topilmadi!"); await state.clear(); return
+    
+    saved = await db.save_multi_part_session(message.from_user.id)
+    if saved > 0: await message.answer(f"✅ <b>{session['media_name']}</b> ga <b>{saved}</b> ta qism qo'shildi!\n\n🔔 Bildirishnomalar yuborildi.")
+    else: await message.answer("❌ Hech qanday qism qo'shilmadi!")
+    await state.clear()
+
+# ================= ADMIN BROADCAST =================
+@dp.message(F.text == "📨 Xabar yuborish")
+async def broadcast_start(message: Message, state: FSMContext):
+    if not await db.is_admin(message.from_user.id): return
+    await message.answer("📢 <b>Xabar yuborish</b>\n\nBarcha foydalanuvchilarga yuboriladigan xabar matnini yuboring.\n\n📌 HTML formatda yozishingiz mumkin.\nRasm, video yoki matn.\n🔙 /cancel")
+    await state.set_state(AdminStates.waiting_broadcast)
+
+@dp.message(AdminStates.waiting_broadcast)
+async def broadcast_send(message: Message, state: FSMContext):
+    users = await db.get_all_users(only_active=True)
+    sent, failed = 0, 0
+    status_msg = await message.answer(f"📨 Xabar {len(users)} ta foydalanuvchiga yuborilmoqda...")
+    
+    for u in users:
+        try:
+            if message.photo: await bot.send_photo(u["id"], message.photo[-1].file_id, caption=message.caption or "", parse_mode=ParseMode.HTML)
+            elif message.video: await bot.send_video(u["id"], message.video.file_id, caption=message.caption or "", parse_mode=ParseMode.HTML)
+            elif message.document: await bot.send_document(u["id"], message.document.file_id, caption=message.caption or "", parse_mode=ParseMode.HTML)
+            else: await bot.send_message(u["id"], message.html_text, parse_mode=ParseMode.HTML)
+            sent += 1; await asyncio.sleep(0.05)
+        except: failed += 1
+    
+    await status_msg.edit_text(f"✅ <b>Xabar yuborildi!</b>\n\n✅ Muvaffaqiyatli: {sent}\n❌ Muvaffaqiyatsiz: {failed}\n📊 Jami: {len(users)} ta")
+
+# ================= UTILITY FUNCTIONS =================
+async def safe_reply(event, text, **kwargs):
+    try:
+        if isinstance(event, CallbackQuery) and event.message: return await event.message.edit_text(text, **kwargs)
+        return await event.answer(text, **kwargs)
+    except:
+        try:
+            if isinstance(event, CallbackQuery) and event.message: return await event.message.answer(text, **kwargs)
+            return await event.answer(text, **kwargs)
+        except: return None
+
+async def safe_send_photo(event, photo, caption=None, reply_markup=None, **kwargs):
+    try:
+        if isinstance(event, CallbackQuery):
+            try: return await event.message.edit_media(InputMediaPhoto(media=photo, caption=caption, parse_mode=ParseMode.HTML), reply_markup=reply_markup)
+            except: return await event.message.answer_photo(photo, caption=caption, reply_markup=reply_markup)
+        return await event.answer_photo(photo, caption=caption, reply_markup=reply_markup)
+    except:
+        if caption: return await safe_reply(event, caption, reply_markup=reply_markup)
+        return None
+
+# ================= CANCEL COMMAND =================
+@dp.message(Command("cancel"))
+async def cancel_command(message: Message, state: FSMContext):
+    if await state.get_state():
+        await state.clear()
+        await db.clear_multi_part_session(message.from_user.id)
+        user_is_vip = await db.is_vip(message.from_user.id)
+        await message.answer("✅ Amal bekor qilindi!", reply_markup=get_main_menu(user_is_vip))
+    else: await message.answer("❌ Hech qanday amal davom etmayapti!")
+
+# ================= UNKNOWN HANDLERS =================
+@dp.message()
+async def unknown_message(message: Message):
+    try:
+        code = int(message.text.strip())
+        media = await db.get_media_by_code(code)
+        if media: await show_media_details(message, media["id"], await db.is_vip(message.from_user.id)); return
+    except: pass
+
+@dp.callback_query()
+async def unknown_callback(callback: CallbackQuery):
+    await callback.answer("❌ Xato! Iltimos, qaytadan urinib ko'ring.")
+
+# ================= BACKGROUND TASKS =================
+async def vip_expiry_checker():
+    while True:
+        await asyncio.sleep(86400)
+        await db.check_all_vip_expiry()
+        logger.info("VIP expiry checked")
+
+# ================= MINI APP SERVER =================
+def run_mini_app_server():
+    """Mini App uchun HTTP server"""
+    import http.server
+    
+    class MiniAppHandler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/' or self.path == '/index.html':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(MINI_APP_HTML.encode('utf-8'))
+            elif self.path == '/api/media':
+                self.send_json_response({"status": "ok", "data": []})
+            elif self.path == '/api/media/count':
+                self.send_json_response({"count": 0})
+            else:
+                self.send_error(404)
+        
+        def do_POST(self):
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 0:
+                post_data = self.rfile.read(content_length)
+                try: data = json.loads(post_data)
+                except: data = {}
+            else: data = {}
+            
+            if self.path == '/api/register':
+                self.send_json_response({"success": True, "message": "Ro'yxatdan o'tildi!"})
+            elif self.path == '/api/like':
+                self.send_json_response({"success": True})
+            elif self.path == '/api/comment':
+                self.send_json_response({"success": True})
+            elif self.path == '/api/search':
+                self.send_json_response({"results": []})
+            else: self.send_error(404)
+        
+        def send_json_response(self, data):
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode('utf-8'))
+        
+        def log_message(self, format, *args):
+            pass  # Server loglarini o'chirish
+    
+    server = HTTPServer((MINI_APP_HOST, MINI_APP_PORT), MiniAppHandler)
+    print(f"🌐 Mini App server: http://localhost:{MINI_APP_PORT}")
+    server.serve_forever()
+
+# ================= MINI APP HTML =================
+MINI_APP_HTML = '''<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AniComplex - Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --accent: #e74c3c;
+            --accent2: #f39c12;
+            --text: #ffffff;
+            --text2: #a0a0b0;
+            --border: #1e1e2e;
+            --glow: 0 0 20px rgba(231, 76, 60, 0.3);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* === ANIMATED BACKGROUND === */
+        .bg-particles {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none; overflow: hidden;
+        }
+        .particle {
+            position: absolute; border-radius: 50%; opacity: 0.3;
+            animation: floatUp 8s infinite ease-in;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(231, 76, 60, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(231, 76, 60, 0.6); }
+        }
+        
+        .container {
+            position: relative; z-index: 1; max-width: 480px;
+            margin: 0 auto; padding: 15px;
+        }
+        
+        /* === ANIMATED HEADER === */
+        .header {
+            text-align: center; padding: 25px 15px;
+            background: linear-gradient(135deg, var(--card), #1a1a2e);
+            border-radius: 20px; margin-bottom: 20px;
+            border: 1px solid var(--border);
+            animation: slideIn 0.6s ease, glow 3s infinite;
+            position: relative; overflow: hidden;
+        }
+        .header::before {
+            content: ''; position: absolute; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(231,76,60,0.05), transparent);
+            animation: rotate 8s linear infinite;
+        }
+        .header h1 {
+            font-size: 26px; font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: pulse 2s infinite; position: relative; z-index: 1;
+        }
+        .header p { color: var(--text2); font-size: 13px; margin-top: 5px; position: relative; z-index: 1; }
+        
+        /* === SUBSCRIBER BADGE === */
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            padding: 6px 14px; border-radius: 20px; font-size: 11px;
+            font-weight: 600; margin-top: 10px;
+            animation: slideIn 0.8s ease, pulse 3s infinite;
+            position: relative; z-index: 1;
+        }
+        .badge::before { content: '✅'; }
+        
+        /* === AUTH FORM === */
+        .auth-form {
+            background: var(--card); border-radius: 20px; padding: 25px;
+            margin: 20px 0; border: 1px solid var(--border);
+            animation: slideIn 0.5s ease;
+        }
+        .auth-form h2 {
+            text-align: center; margin-bottom: 20px;
+            font-size: 20px; color: var(--accent);
+        }
+        .auth-form input {
+            width: 100%; padding: 14px; margin: 8px 0;
+            border: 2px solid var(--border); border-radius: 12px;
+            background: var(--bg); color: var(--text);
+            font-size: 15px; transition: all 0.3s ease;
+            outline: none;
+        }
+        .auth-form input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.2);
+        }
+        .btn-primary {
+            width: 100%; padding: 15px; margin-top: 12px;
+            background: linear-gradient(135deg, var(--accent), #c0392b);
+            color: white; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: all 0.3s ease; animation: glow 3s infinite;
+        }
+        .btn-primary:active { transform: scale(0.95); }
+        
+        /* === SEARCH BAR === */
+        .search-bar {
+            display: flex; gap: 8px; margin: 15px 0;
+            animation: slideIn 0.6s ease;
+        }
+        .search-bar input {
+            flex: 1; padding: 14px; border: 2px solid var(--border);
+            border-radius: 12px; background: var(--card);
+            color: var(--text); font-size: 15px; outline: none;
+            transition: all 0.3s ease;
+        }
+        .search-bar input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.2);
+        }
+        .btn-icon {
+            padding: 14px 18px; background: var(--accent);
+            color: white; border: none; border-radius: 12px;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .btn-icon:active { transform: scale(0.9); }
+        
+        /* === TABS === */
+        .tabs {
+            display: flex; gap: 6px; margin: 15px 0;
+            overflow-x: auto; padding-bottom: 5px;
+            animation: slideIn 0.7s ease;
+        }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab {
+            padding: 10px 18px; background: var(--card);
+            border: 1px solid var(--border); border-radius: 25px;
+            color: var(--text2); cursor: pointer; font-size: 13px;
+            font-weight: 500; white-space: nowrap; transition: all 0.3s ease;
+        }
+        .tab.active {
+            background: var(--accent); color: white;
+            border-color: var(--accent); animation: pulse 2s infinite;
+        }
+        
+        /* === MEDIA GRID === */
+        .media-grid {
+            display: grid; grid-template-columns: 1fr; gap: 12px;
+            margin: 15px 0; padding-bottom: 80px;
+        }
+        .media-card {
+            background: var(--card); border-radius: 16px;
+            overflow: hidden; border: 1px solid var(--border);
+            cursor: pointer; transition: all 0.3s ease;
+            animation: slideIn 0.5s ease;
+            display: flex;
+        }
+        .media-card:active { transform: scale(0.97); }
+        .media-card img {
+            width: 110px; height: 150px; object-fit: cover;
+            border-radius: 0; flex-shrink: 0;
+        }
+        .media-card .info { padding: 14px; flex: 1; }
+        .media-card .title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+        .media-card .meta { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+        .media-card .rating-stars { color: var(--accent2); font-size: 13px; }
+        
+        /* === PLAYER SECTION === */
+        .player-section {
+            animation: slideIn 0.4s ease;
+        }
+        .player-section video {
+            width: 100%; border-radius: 16px;
+            background: #000; margin-bottom: 12px;
+        }
+        .part-buttons {
+            display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;
+        }
+        .part-btn {
+            padding: 8px 14px; background: var(--card);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text2); cursor: pointer; font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        .part-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        
+        /* === LIKE & COMMENT BUTTONS === */
+        .action-buttons {
+            display: flex; gap: 8px; margin: 10px 0;
+        }
+        .action-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 10px 16px; background: var(--card);
+            border: 1px solid var(--border); border-radius: 25px;
+            color: var(--text2); cursor: pointer; font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        .action-btn.liked { background: var(--accent); color: white; border-color: var(--accent); }
+        
+        /* === COMMENTS === */
+        .comments-section {
+            background: var(--card); border-radius: 16px;
+            padding: 15px; margin: 10px 0; border: 1px solid var(--border);
+            animation: slideIn 0.3s ease;
+        }
+        .comment {
+            background: var(--bg); padding: 12px; border-radius: 10px;
+            margin: 8px 0; border: 1px solid var(--border);
+            animation: slideIn 0.3s ease;
+        }
+        .comment-user { font-weight: 700; color: var(--accent); font-size: 13px; }
+        .comment-text { font-size: 14px; margin-top: 4px; color: var(--text); }
+        .comment-input {
+            display: flex; gap: 8px; margin-top: 12px;
+        }
+        .comment-input input {
+            flex: 1; padding: 12px; border: 1px solid var(--border);
+            border-radius: 10px; background: var(--bg);
+            color: var(--text); font-size: 14px; outline: none;
+        }
+        .comment-input button {
+            padding: 10px 16px; background: var(--accent);
+            color: white; border: none; border-radius: 10px;
+            cursor: pointer; font-weight: 600;
+        }
+        
+        /* === SKELETON LOADING === */
+        .skeleton {
+            background: linear-gradient(90deg, var(--card) 25%, #1a1a2e 50%, var(--card) 75%);
+            background-size: 200% 100%; animation: shimmer 1.5s infinite;
+            border-radius: 10px;
+        }
+        
+        /* === EMPTY STATE === */
+        .empty-state {
+            text-align: center; padding: 50px 20px;
+            animation: fadeIn 0.6s ease;
+        }
+        .empty-state .icon { font-size: 60px; margin-bottom: 15px; animation: bounce 2s infinite; }
+        .empty-state p { color: var(--text2); font-size: 14px; }
+        
+        .hidden { display: none !important; }
+        
+        /* === BOTTOM NAV === */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--card); border-top: 1px solid var(--border);
+            padding: 10px 20px; display: flex; justify-content: space-around;
+            z-index: 100; animation: slideIn 0.8s ease;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 4px; cursor: pointer; padding: 8px 12px;
+            border-radius: 12px; transition: all 0.3s ease;
+            color: var(--text2); font-size: 11px; border: none;
+            background: none;
+        }
+        .nav-item.active { color: var(--accent); }
+        .nav-item .nav-icon { font-size: 22px; }
+    </style>
+</head>
+<body>
+
+<!-- ANIMATED PARTICLES BACKGROUND -->
+<div class="bg-particles" id="particles"></div>
+
+<!-- MAIN CONTAINER -->
+<div class="container" id="mainContainer">
+    
+    <!-- HEADER -->
+    <div class="header" id="headerSection">
+        <h1>🎬 AniComplex</h1>
+        <p>Anime olamiga xush kelibsiz!</p>
+        <div class="badge hidden" id="subscriberBadge">AniComplex obunachisi</div>
+    </div>
+    
+    <!-- AUTH FORM -->
+    <div class="auth-form" id="authSection">
+        <h2>📝 Ro'yxatdan o'tish</h2>
+        <input type="text" id="firstNameInput" placeholder="👤 Ismingiz">
+        <input type="text" id="usernameInput" placeholder="📱 Telegram username">
+        <button class="btn-primary" onclick="register()">✅ Ro'yxatdan o'tish</button>
+    </div>
+    
+    <!-- MAIN SECTION -->
+    <div id="mainSection" class="hidden">
+        <!-- Search -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Anime qidirish...">
+            <button class="btn-icon" onclick="searchAnime()">🔍</button>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="loadTab('all')">📋 Barchasi</button>
+            <button class="tab" onclick="loadTab('ongoing')">🟢 Davom etayotgan</button>
+            <button class="tab" onclick="loadTab('completed')">✅ Tugallangan</button>
+            <button class="tab" onclick="loadTab('popular')">🏆 Mashhur</button>
+        </div>
+        
+        <!-- Media Grid -->
+        <div id="mediaGrid" class="media-grid">
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>Hozircha media mavjud emas</p>
+                <p style="font-size:12px;margin-top:5px;">Bot orqali media qo'shilganda avtomatik yangilanadi</p>
+            </div>
+        </div>
+        
+        <!-- Player Section -->
+        <div id="playerSection" class="player-section hidden">
+            <video id="videoPlayer" controls poster="https://i.imgur.com/anime_poster.jpg"></video>
+            <h3 id="playerTitle" style="margin:8px 0;"></h3>
+            
+            <div class="action-buttons">
+                <button class="action-btn" id="likeBtn" onclick="toggleLike()">
+                    ❤️ <span id="likeCount">0</span>
+                </button>
+                <button class="action-btn" onclick="toggleComments()">
+                    💬 <span id="commentCount">0</span>
+                </button>
+            </div>
+            
+            <div id="commentsSection" class="comments-section hidden">
+                <div id="commentsList"></div>
+                <div class="comment-input">
+                    <input type="text" id="commentInput" placeholder="Izoh yozing...">
+                    <button onclick="addComment()">➤</button>
+                </div>
+            </div>
+            
+            <div class="part-buttons" id="partButtons"></div>
+            <button class="btn-primary" onclick="closePlayer()">🔙 Orqaga</button>
+        </div>
+    </div>
+</div>
+
+<!-- BOTTOM NAVIGATION -->
+<div class="bottom-nav hidden" id="bottomNav">
+    <button class="nav-item active" onclick="loadTab('all')">
+        <span class="nav-icon">🏠</span> Bosh
+    </button>
+    <button class="nav-item" onclick="loadTab('popular')">
+        <span class="nav-icon">🔥</span> Mashhur
+    </button>
+    <button class="nav-item" onclick="scrollToSearch()">
+        <span class="nav-icon">🔍</span> Qidiruv
+    </button>
+    <button class="nav-item" onclick="loadTab('ongoing')">
+        <span class="nav-icon">🆕</span> Yangi
+    </button>
+</div>
+
+<script>
+// ==================== INIT ====================
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// Generate animated particles
+const particlesContainer = document.getElementById('particles');
+for (let i = 0; i < 30; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    const size = Math.random() * 4 + 2;
+    particle.style.cssText = `
+        width: ${size}px; height: ${size}px;
+        left: ${Math.random() * 100}%;
+        background: ${Math.random() > 0.5 ? '#e74c3c' : '#f39c12'};
+        animation-delay: ${Math.random() * 8}s;
+        animation-duration: ${Math.random() * 10 + 6}s;
+    `;
+    particlesContainer.appendChild(particle);
+}
+
+// ==================== AUTH ====================
+function checkAuth() {
+    const user = localStorage.getItem('anicomplex_user');
+    if (user) {
+        document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('mainSection').classList.remove('hidden');
+        document.getElementById('bottomNav').classList.remove('hidden');
+        checkSubscription();
+        loadMedia();
+    }
+}
+
+function register() {
+    const name = document.getElementById('firstNameInput').value.trim();
+    const username = document.getElementById('usernameInput').value.trim();
+    if (!name || !username) { tg.showAlert('Barcha maydonlarni to\'ldiring!'); return; }
+    
+    const userData = {
+        id: tg.initDataUnsafe?.user?.id || Date.now(),
+        first_name: name, username: username,
+        registered_at: new Date().toISOString()
+    };
+    
+    localStorage.setItem('anicomplex_user', JSON.stringify(userData));
+    
+    // API ga yuborish
+    fetch('/api/register', {
+        method: 'POST',
+        body: JSON.stringify(userData)
+    }).catch(() => {});
+    
+    document.getElementById('authSection').classList.add('hidden');
+    document.getElementById('mainSection').classList.remove('hidden');
+    document.getElementById('bottomNav').classList.remove('hidden');
+    checkSubscription();
+    loadMedia();
+    
+    tg.HapticFeedback.notificationOccurred('success');
+}
+
+function checkSubscription() {
+    const user = JSON.parse(localStorage.getItem('anicomplex_user') || '{}');
+    if (user.username && user.username.toLowerCase().includes('anicomplex')) {
+        document.getElementById('subscriberBadge').classList.remove('hidden');
+        document.getElementById('subscriberBadge').style.display = 'inline-flex';
+    }
+}
+
+// ==================== MEDIA LOADING ====================
+let currentMedia = null;
+let currentPart = 1;
+let isLiked = false;
+let mediaData = [];
+
+function loadMedia() {
+    const grid = document.getElementById('mediaGrid');
+    grid.innerHTML = '';
+    
+    // Skeleton loaders
+    for (let i = 0; i < 3; i++) {
+        const skeleton = document.createElement('div');
+        skeleton.className = 'media-card skeleton';
+        skeleton.innerHTML = `
+            <div style="width:110px;height:150px;"></div>
+            <div style="padding:14px;flex:1;">
+                <div class="skeleton" style="height:18px;width:80%;margin-bottom:8px;"></div>
+                <div class="skeleton" style="height:12px;width:50%;margin-bottom:4px;"></div>
+                <div class="skeleton" style="height:12px;width:30%;"></div>
+            </div>
+        `;
+        grid.appendChild(skeleton);
+    }
+    
+    // API orqali media yuklash
+    fetch('/api/media')
+        .then(res => res.json())
+        .then(data => {
+            if (data.data && data.data.length > 0) {
+                mediaData = data.data;
+                renderMedia(mediaData);
+            } else {
+                showEmptyState();
+            }
+        })
+        .catch(() => showEmptyState());
+}
+
+function showEmptyState() {
+    const grid = document.getElementById('mediaGrid');
+    grid.innerHTML = `
+        <div class="empty-state">
+            <div class="icon">📭</div>
+            <p><b>Hozircha media mavjud emas</b></p>
+            <p style="margin-top:8px;">Bot orqali media qo'shilganda<br>avtomatik yangilanadi</p>
+        </div>
+    `;
+}
+
+function renderMedia(mediaList) {
+    const grid = document.getElementById('mediaGrid');
+    grid.innerHTML = '';
+    
+    if (!mediaList || mediaList.length === 0) {
+        showEmptyState();
+        return;
+    }
+    
+    mediaList.forEach((media, index) => {
+        const card = document.createElement('div');
+        card.className = 'media-card';
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.onclick = () => openPlayer(media);
+        
+        const stars = media.rating ? '⭐'.repeat(Math.min(5, Math.floor((media.rating || 0) / 2))) : '';
+        const imageUrl = media.image_url || 'https://i.imgur.com/anime_default.jpg';
+        
+        card.innerHTML = `
+            <img src="${imageUrl}" alt="${media.name}" onerror="this.src='https://i.imgur.com/anime_default.jpg'">
+            <div class="info">
+                <div class="title">${media.name}</div>
+                <div class="meta">📀 ${media.total_parts || 0} qism • ${media.status === 'completed' ? '✅' : '🟢'}</div>
+                <div class="meta">👁 ${formatViews(media.views || 0)} • ❤️ ${media.likes || 0}</div>
+                <div class="rating-stars">${stars} ${(media.rating || 0).toFixed(1)}</div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function loadTab(type) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event?.target?.classList.add('active');
+    // Filter yoki qayta yuklash
+    loadMedia();
+}
+
+function searchAnime() {
+    const query = document.getElementById('searchInput').value.trim();
+    if (!query) { loadMedia(); return; }
+    
+    fetch('/api/search', {
+        method: 'POST',
+        body: JSON.stringify({ query })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.results) renderMedia(data.results);
+    })
+    .catch(() => tg.showAlert('Qidiruvda xatolik'));
+}
+
+// ==================== PLAYER ====================
+function openPlayer(media) {
+    currentMedia = media;
+    document.getElementById('mediaGrid').classList.add('hidden');
+    document.querySelector('.tabs').classList.add('hidden');
+    document.querySelector('.search-bar').classList.add('hidden');
+    document.getElementById('playerSection').classList.remove('hidden');
+    document.getElementById('playerTitle').textContent = media.name;
+    document.getElementById('likeCount').textContent = media.likes || 0;
+    document.getElementById('commentCount').textContent = (media.comments || []).length;
+    
+    // Part buttons
+    const pb = document.getElementById('partButtons');
+    pb.innerHTML = '';
+    const totalParts = Math.min(media.total_parts || 0, 30);
+    for (let i = 1; i <= totalParts; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'part-btn';
+        btn.textContent = `${i}-qism`;
+        btn.onclick = () => loadPart(i);
+        pb.appendChild(btn);
+    }
+    
+    loadPart(1);
+    tg.HapticFeedback.impactOccurred('medium');
+}
+
+function loadPart(partNum) {
+    currentPart = partNum;
+    document.querySelectorAll('.part-btn').forEach(b => b.classList.remove('active'));
+    const btns = document.querySelectorAll('.part-btn');
+    if (btns[partNum - 1]) btns[partNum - 1].classList.add('active');
+    
+    const video = document.getElementById('videoPlayer');
+    video.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
+    video.load();
+}
+
+function closePlayer() {
+    document.getElementById('playerSection').classList.add('hidden');
+    document.getElementById('mediaGrid').classList.remove('hidden');
+    document.querySelector('.tabs').classList.remove('hidden');
+    document.querySelector('.search-bar').classList.remove('hidden');
+    document.getElementById('commentsSection').classList.add('hidden');
+    document.getElementById('videoPlayer').pause();
+    document.getElementById('videoPlayer').src = '';
+    currentMedia = null;
+    loadMedia();
+    tg.HapticFeedback.impactOccurred('light');
+}
+
+// ==================== LIKES & COMMENTS ====================
+function toggleLike() {
+    isLiked = !isLiked;
+    const btn = document.getElementById('likeBtn');
+    btn.classList.toggle('liked', isLiked);
+    const count = document.getElementById('likeCount');
+    count.textContent = parseInt(count.textContent) + (isLiked ? 1 : -1);
+    
+    fetch('/api/like', { method: 'POST', body: JSON.stringify({ media_id: currentMedia?.id }) })
+        .catch(() => {});
+    
+    if (isLiked) tg.HapticFeedback.notificationOccurred('success');
+}
+
+function toggleComments() {
+    document.getElementById('commentsSection').classList.toggle('hidden');
+    loadComments();
+}
+
+function loadComments() {
+    const list = document.getElementById('commentsList');
+    const comments = currentMedia?.comments || [];
+    list.innerHTML = comments.length === 0
+        ? '<p style="color:#888;text-align:center;padding:15px;">💬 Hozircha izohlar yo\'q</p>'
+        : comments.map(c => `
+            <div class="comment">
+                <div class="comment-user">👤 ${c.username}</div>
+                <div class="comment-text">${c.text}</div>
+            </div>
+        `).join('');
+}
+
+function addComment() {
+    const input = document.getElementById('commentInput');
+    const text = input.value.trim();
+    if (!text) return;
+    
+    const user = JSON.parse(localStorage.getItem('anicomplex_user') || '{}');
+    const comment = { username: user.username || 'Anonim', text };
+    
+    if (!currentMedia.comments) currentMedia.comments = [];
+    currentMedia.comments.unshift(comment);
+    document.getElementById('commentCount').textContent = currentMedia.comments.length;
+    loadComments();
+    input.value = '';
+    
+    fetch('/api/comment', {
+        method: 'POST',
+        body: JSON.stringify({ media_id: currentMedia?.id, text })
+    }).catch(() => {});
+    
+    tg.HapticFeedback.notificationOccurred('success');
+}
+
+// ==================== UTILS ====================
+function formatViews(num) {
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
+    if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function scrollToSearch() {
+    document.getElementById('searchInput').focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ==================== START ====================
+checkAuth();
+if (tg.BackButton) {
+    tg.BackButton.onClick(() => {
+        if (!document.getElementById('playerSection').classList.contains('hidden')) {
+            closePlayer();
+        }
+    });
+}
+</script>
+</body>
+</html>'''
+
+# ================= MAIN =================
+async def main():
+    print("=" * 70)
+    print(f"🤖 ANICOMPLEX BOT v{BOT_VERSION}")
+    print(f"👑 Ownerlar: {ADMINS}")
+    print(f"📢 Kanal: {MAIN_CHANNEL}")
+    print(f"👨‍💻 Muallif: {AUTHOR_USERNAME}")
+    print(f"👑 VIP narxi: {VIP_PRICE} so'm/oy")
+    print("=" * 70)
+    
+    await db.connect()
+    print("✅ Database ulandi")
+    
+    await db.check_all_vip_expiry()
+    print("✅ VIP muddatlari tekshirildi")
+    
+    try: await bot.delete_webhook(drop_pending_updates=True)
+    except: pass
+    
+    # Mini App server    if MINI_APP_URL and MINI_APP_URL.startswith("https://"):
+        mini_app_thread = threading.Thread(target=run_mini_app_server, daemon=True)
+        mini_app_thread.start()
+        try: await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🎮 Mini App", web_app=WebAppInfo(url=MINI_APP_URL)))
+        except: pass
+    
+    asyncio.create_task(vip_expiry_checker())
+    
+    print("✅ Bot to'liq ishga tushdi!")
+    print("=" * 70)
+    
+    try: await dp.start_polling(bot)
+    except KeyboardInterrupt: print("\n⚠️ To'xtatildi")
+    finally: await db.close(); await bot.session.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
