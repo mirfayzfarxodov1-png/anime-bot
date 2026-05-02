@@ -5483,6 +5483,7 @@ def run_mini_app_server():
 # ================= MINI APP API ENDPOINTS =================
 from aiohttp import web
 import json
+import traceback
 
 class MiniAppAPI:
     """Mini App uchun API endpointlar"""
@@ -5492,27 +5493,42 @@ class MiniAppAPI:
         """Barcha medialarni qaytaradi"""
         media_list = []
         try:
-            async with db.conn.execute("""
-                SELECT id, name, code, total_parts, status, rating, rating_count, 
-                       image_url, views, is_vip, description, genre, created_at
-                FROM media WHERE is_vip=0 OR is_vip=1
-                ORDER BY id DESC
-            """) as c:
+            # Database ulanishini tekshirish
+            if db.conn is None:
+                print("❌ Database connection is None!")
+                return web.json_response({"status": "error", "message": "Database not connected"}, status=500)
+            
+            # Oddiy query - barcha medialarni olish
+            async with db.conn.execute("SELECT * FROM media ORDER BY id DESC") as c:
                 rows = await c.fetchall()
+                print(f"✅ Found {len(rows)} media in database")  # Debug log
+                
                 for row in rows:
-                    # Like va comment larni olish
-                    likes = await db.get_likes(row['id'])
-                    async with db.conn.execute(
-                        "SELECT username, text, created_at FROM comments WHERE media_id=? ORDER BY created_at DESC LIMIT 20", 
-                        (row['id'],)
-                    ) as cc:
-                        comments = await cc.fetchall()
+                    # Like sonini olish
+                    likes = 0
+                    try:
+                        async with db.conn.execute("SELECT COUNT(*) FROM likes WHERE media_id=?", (row['id'],)) as lc:
+                            like_row = await lc.fetchone()
+                            likes = like_row[0] if like_row else 0
+                    except:
+                        likes = 0
+                    
+                    # Commentlarni olish
+                    comments = []
+                    try:
+                        async with db.conn.execute(
+                            "SELECT username, text, created_at FROM comments WHERE media_id=? ORDER BY created_at DESC LIMIT 20", 
+                            (row['id'],)
+                        ) as cc:
+                            comments = await cc.fetchall()
+                    except:
+                        comments = []
                     
                     media_list.append({
                         "id": row['id'],
                         "name": row['name'],
                         "code": row['code'],
-                        "total_parts": row['total_parts'],
+                        "total_parts": row['total_parts'] or 0,
                         "status": row['status'] or "ongoing",
                         "rating": float(row['rating'] or 0),
                         "rating_count": row['rating_count'] or 0,
@@ -5525,9 +5541,12 @@ class MiniAppAPI:
                         "genre": row['genre'] or "",
                         "created_at": row['created_at']
                     })
+                    
         except Exception as e:
-            logger.error(f"API get_media error: {e}")
+            print(f"❌ API get_media error: {e}")
+            print(traceback.format_exc())
         
+        print(f"📊 Returning {len(media_list)} media items")
         return web.json_response({"status": "ok", "data": media_list})
     
     @staticmethod
@@ -5541,10 +5560,10 @@ class MiniAppAPI:
             
             if user_id:
                 await db.add_user(user_id, username, first_name, "")
-                logger.info(f"New user registered from MiniApp: {user_id}")
+                print(f"✅ New user registered: {user_id}")
                 return web.json_response({"status": "ok", "message": "User registered"})
         except Exception as e:
-            logger.error(f"API register error: {e}")
+            print(f"❌ API register error: {e}")
         
         return web.json_response({"status": "error"}, status=400)
     
@@ -5564,7 +5583,7 @@ class MiniAppAPI:
                     await db.remove_like(user_id, media_id)
                 return web.json_response({"status": "ok"})
         except Exception as e:
-            logger.error(f"API like error: {e}")
+            print(f"❌ API like error: {e}")
         
         return web.json_response({"status": "error"}, status=400)
     
@@ -5580,10 +5599,10 @@ class MiniAppAPI:
             
             if media_id and text:
                 await db.add_comment(user_id or 0, media_id, username, text)
-                logger.info(f"New comment on media {media_id}")
+                print(f"✅ New comment on media {media_id}")
                 return web.json_response({"status": "ok"})
         except Exception as e:
-            logger.error(f"API comment error: {e}")
+            print(f"❌ API comment error: {e}")
         
         return web.json_response({"status": "error"}, status=400)
     
@@ -5591,23 +5610,25 @@ class MiniAppAPI:
     async def get_media_count(request):
         """Media sonini qaytaradi"""
         try:
-            count = await db.get_media_count()
-            return web.json_response({"count": count})
-        except:
+            async with db.conn.execute("SELECT COUNT(*) FROM media") as c:
+                row = await c.fetchone()
+                count = row[0] if row else 0
+                return web.json_response({"count": count})
+        except Exception as e:
+            print(f"❌ API media count error: {e}")
             return web.json_response({"count": 0})
 
 
 # ================= YANGI: ROOT SAHIFANI KO'RSATISH =================
 async def handle_root(request):
     """Asosiy Mini App HTML sahifasini qaytaradi"""
-    # MINI_APP_HTML o'zgaruvchisi sizda mavjud (juda uzun)
     return web.Response(text=MINI_APP_HTML, content_type='text/html')
 
 
 # ================= API SERVER YARATISH =================
 api_app = web.Application()
 
-# ROOT manzilini qo'shamiz (asosiy sahifa)
+# ROOT manzili
 api_app.router.add_get('/', handle_root)
 api_app.router.add_get('/index.html', handle_root)
 
@@ -5625,7 +5646,7 @@ async def start_api_server():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', 8080)
     await site.start()
-    logger.info("✅ MiniApp API server running on port 8080")
+    print("✅ MiniApp API server running on port 8080")
 
 # ================= MAIN =================
 async def main():
