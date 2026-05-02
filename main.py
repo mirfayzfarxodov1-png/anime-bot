@@ -220,34 +220,34 @@ class Database:
                         await self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
                         logger.info(f"✅ {table}.{col} qo'shildi")
             except: pass
-        await self.conn.commit()
+               await self.conn.commit()
         logger.info("✅ Database migration tugadi")
 
 db = Database()
 
-    # ================= USER METHODS =================
-    async def add_user(self, uid, username="", first_name="", last_name=""):
-        now = datetime.now().isoformat()
-        await self.conn.execute("INSERT OR IGNORE INTO users (id,username,first_name,last_name,registered_at,last_active) VALUES(?,?,?,?,?,?)", (uid, username, first_name, last_name, now, now))
-        await self.conn.commit()
-        today = datetime.now().strftime("%Y-%m-%d")
-        await self.conn.execute("UPDATE daily_stats SET new_users=new_users+1 WHERE date=?", (today,))
-        await self.conn.commit()
-    
-    async def update_activity(self, uid):
-        await self.conn.execute("UPDATE users SET last_active=? WHERE id=?", (datetime.now().isoformat(), uid))
-        await self.conn.commit()
-    
-    async def get_user(self, uid):
-        async with self.conn.execute("SELECT * FROM users WHERE id=?", (uid,)) as c: return await c.fetchone()
-    
-    async def get_all_users(self, only_active=False):
-        q = "SELECT id FROM users WHERE is_blocked=0" if only_active else "SELECT id FROM users"
-        async with self.conn.execute(q) as c: return await c.fetchall()
-    
-    async def get_user_count(self):
-        async with self.conn.execute("SELECT COUNT(*) FROM users WHERE is_blocked=0") as c:
-            row = await c.fetchone(); return row[0] if row else 0
+# ================= USER METHODS =================
+async def add_user(self, uid, username="", first_name="", last_name=""):
+    now = datetime.now().isoformat()
+    await self.conn.execute("INSERT OR IGNORE INTO users (id,username,first_name,last_name,registered_at,last_active) VALUES(?,?,?,?,?,?)", (uid, username, first_name, last_name, now, now))
+    await self.conn.commit()
+    today = datetime.now().strftime("%Y-%m-%d")
+    await self.conn.execute("UPDATE daily_stats SET new_users=new_users+1 WHERE date=?", (today,))
+    await self.conn.commit()
+
+async def update_activity(self, uid):
+    await self.conn.execute("UPDATE users SET last_active=? WHERE id=?", (datetime.now().isoformat(), uid))
+    await self.conn.commit()
+
+async def get_user(self, uid):
+    async with self.conn.execute("SELECT * FROM users WHERE id=?", (uid,)) as c: return await c.fetchone()
+
+async def get_all_users(self, only_active=False):
+    q = "SELECT id FROM users WHERE is_blocked=0" if only_active else "SELECT id FROM users"
+    async with self.conn.execute(q) as c: return await c.fetchall()
+
+async def get_user_count(self):
+    async with self.conn.execute("SELECT COUNT(*) FROM users WHERE is_blocked=0") as c:
+        row = await c.fetchone(); return row[0] if row else 0
     
     # ================= ADMIN METHODS =================
     async def is_admin(self, uid):
