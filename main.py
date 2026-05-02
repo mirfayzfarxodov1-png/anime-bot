@@ -198,7 +198,7 @@ class Database:
         
         logger.info("✅ All tables created")
     
-    async def _migrate_tables(self):
+   async def _migrate_tables(self):
         """Yo'q ustunlarni qo'shish"""
         migrations = {
             'media': {'rating': 'REAL DEFAULT 0', 'rating_count': 'INTEGER DEFAULT 0', 'release_year': 'INTEGER', 'post_message_id': 'INTEGER', 'post_channel': 'TEXT', 'updated_at': 'TEXT'},
@@ -211,17 +211,6 @@ class Database:
             'multi_part_sessions': {'user_id': 'INTEGER', 'media_id': 'INTEGER', 'media_name': 'TEXT', 'parts_data': 'TEXT', 'total_parts': 'INTEGER DEFAULT 0', 'created_at': 'TEXT'},
             'groups': {'title': 'TEXT', 'username': 'TEXT', 'added_by': 'INTEGER', 'added_at': 'TEXT', 'is_active': 'INTEGER DEFAULT 1'},
         }
-        for table, cols in migrations.items():
-            try:
-                async with self.conn.execute(f"PRAGMA table_info({table})") as c:
-                    existing = [row[1] for row in await c.fetchall()]
-                for col, col_type in cols.items():
-                    if col not in existing:
-                        await self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
-                        logger.info(f"✅ {table}.{col} qo'shildi")
-            except: pass
-               await self.conn.commit()
-        logger.info("✅ Database migration tugadi")
 
 db = Database()
 
