@@ -328,7 +328,8 @@ async def _init_tables(self):
                                (datetime.now().isoformat(),))
         await self.conn.commit()
 
-   async def get_group_settings(self, group_id):
+       # ================= GROUP SETTINGS METHODS =================
+    async def get_group_settings(self, group_id):
         """Guruh sozlamalarini olish"""
         try:
             async with self.conn.execute(
@@ -367,7 +368,7 @@ async def _init_tables(self):
         except Exception as e:
             print(f"❌ Error updating group settings: {e}")
             return False
-
+            
     async def add_vip_request(self, uid, phone, amount, proof=""):
         now = datetime.now().isoformat()
         await self.conn.execute("INSERT INTO vip_requests (user_id,phone_number,amount,payment_proof,status,created_at) VALUES(?,?,?,?,'pending',?)", 
