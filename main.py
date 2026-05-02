@@ -5596,13 +5596,28 @@ class MiniAppAPI:
         except:
             return web.json_response({"count": 0})
 
-# API server yaratish
+
+# ================= YANGI: ROOT SAHIFANI KO'RSATISH =================
+async def handle_root(request):
+    """Asosiy Mini App HTML sahifasini qaytaradi"""
+    # MINI_APP_HTML o'zgaruvchisi sizda mavjud (juda uzun)
+    return web.Response(text=MINI_APP_HTML, content_type='text/html')
+
+
+# ================= API SERVER YARATISH =================
 api_app = web.Application()
+
+# ROOT manzilini qo'shamiz (asosiy sahifa)
+api_app.router.add_get('/', handle_root)
+api_app.router.add_get('/index.html', handle_root)
+
+# API manzillar
 api_app.router.add_get('/api/media', MiniAppAPI.get_media)
 api_app.router.add_get('/api/media/count', MiniAppAPI.get_media_count)
 api_app.router.add_post('/api/register', MiniAppAPI.register_user)
 api_app.router.add_post('/api/like', MiniAppAPI.add_like)
 api_app.router.add_post('/api/comment', MiniAppAPI.add_comment)
+
 
 async def start_api_server():
     """API serverni ishga tushirish"""
@@ -5628,28 +5643,22 @@ async def main():
     await db.check_all_vip_expiry()
     print("✅ VIP muddatlari tekshirildi")
     
-    # ✅ 2-BOSQICH: API SERVERNI ISHGA TUSHIRISH (YANGI QO'SHILDI!)
+    # API server (aiohttp) ishga tushadi. U / va /api/* manzillariga javob beradi.
     await start_api_server()
     print("✅ MiniApp API server ishga tushdi (port 8080)")
+    
+    # ⚠️ ESKI HTTPServer-ni ISHGA TUSHIRMAYMIZ! (o'chiriladi)
+    # if MINI_APP_URL and MINI_APP_URL.startswith("https://"):
+    #     mini_app_thread = threading.Thread(target=run_mini_app_server, daemon=True)
+    #     mini_app_thread.start()
+    #     try:
+    #         await bot.set_chat_menu_button(...)
+    #     except: pass
     
     try:
         await bot.delete_webhook(drop_pending_updates=True)
     except:
         pass
-    
-    # Mini App server (agar URL mavjud bo'lsa)
-    if MINI_APP_URL and MINI_APP_URL.startswith("https://"):
-        mini_app_thread = threading.Thread(target=run_mini_app_server, daemon=True)
-        mini_app_thread.start()
-        try:
-            await bot.set_chat_menu_button(
-                menu_button=MenuButtonWebApp(
-                    text="🎮 Mini App",
-                    web_app=WebAppInfo(url=MINI_APP_URL)
-                )
-            )
-        except:
-            pass
     
     asyncio.create_task(vip_expiry_checker())
     
