@@ -198,7 +198,9 @@ class Database:
         
         logger.info("✅ All tables created")
     
-   async def _migrate_tables(self):
+        logger.info("✅ All tables created")
+    
+    async def _migrate_tables(self):
         """Yo'q ustunlarni qo'shish"""
         migrations = {
             'media': {'rating': 'REAL DEFAULT 0', 'rating_count': 'INTEGER DEFAULT 0', 'release_year': 'INTEGER', 'post_message_id': 'INTEGER', 'post_channel': 'TEXT', 'updated_at': 'TEXT'},
