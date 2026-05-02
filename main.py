@@ -741,7 +741,7 @@ def format_media_info(media) -> str:
     is_vip_val = media["is_vip"] if "is_vip" in media.keys() and media["is_vip"] else 0
     description_val = media["description"] if "description" in media.keys() and media["description"] else ""
     
-        text = "✽───〔•°⛩°•〕───✽\n"
+    text = "✽───〔•°⛩°•〕───✽\n"
     text += f"🏷 <b>Anime nomi</b> : {media['name']}\n"
     text += ". . . . . . . . . . . . . . . . . . . . . . . ──\n"
     text += f"🖋 <b>Janri</b> : {genre_hashtags}\n"
@@ -762,8 +762,11 @@ def format_media_info(media) -> str:
     text += f"🔢 <b>Kod</b> : <code>{media['code']}</code>\n"
     text += f"👁 <b>Ko'rilgan</b> : {views_val} marta\n"
     
-    if is_vip_val: text += "👑 <b>VIP kontent</b>\n"
-    if description_val: text += f"\n📝 <b>Tavsif:</b>\n{description_val}\n"
+    if is_vip_val:
+        text += "👑 <b>VIP kontent</b>\n"
+    
+    if description_val:
+        text += f"\n📝 <b>Tavsif:</b>\n{description_val}\n"
     
     return text
 
