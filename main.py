@@ -94,116 +94,127 @@ class Database:
         logger.info("✅ Database connected")
     
     async def _init_tables(self):
-        # Media table
-        await self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS media (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            code INTEGER UNIQUE NOT NULL,
-            name TEXT UNIQUE NOT NULL,
-            genre TEXT, status TEXT DEFAULT 'ongoing',
-            total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
-            rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
-            is_vip INTEGER DEFAULT 0, image_url TEXT,
-            description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
-            release_year INTEGER, created_at TEXT, updated_at TEXT,
-            post_message_id INTEGER, post_channel TEXT
-        )''')
-        
-        # Parts table
-        await self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS parts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            media_id INTEGER, part_number INTEGER,
-            file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
-            duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
-            views INTEGER DEFAULT 0, created_at TEXT,
-            post_message_id INTEGER, post_channel TEXT,
-            FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
-        )''')
-        
-        # Users table
-        await self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY, username TEXT,
-            first_name TEXT, last_name TEXT, phone TEXT,
-            is_vip INTEGER DEFAULT 0, vip_expiry TEXT,
-            is_blocked INTEGER DEFAULT 0, language TEXT DEFAULT 'uz',
-            registered_at TEXT, last_active TEXT, total_views INTEGER DEFAULT 0,
-            is_subscribed INTEGER DEFAULT 0
-        )''')
-        
-        # Admins table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS admins (user_id INTEGER PRIMARY KEY, added_by INTEGER, added_at TEXT, permissions TEXT DEFAULT 'all')''')
-        
-        # Favorites table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS favorites (user_id INTEGER, media_id INTEGER, added_at TEXT, PRIMARY KEY (user_id, media_id))''')
-        
-        # Notifications table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS notifications (user_id INTEGER, media_id INTEGER, media_name TEXT, is_active INTEGER DEFAULT 1, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
-        
-        # VIP requests table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS vip_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, phone_number TEXT, amount INTEGER, payment_proof TEXT, status TEXT DEFAULT 'pending', created_at TEXT, processed_at TEXT, processed_by INTEGER)''')
-        
-        # Forced channels table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS forced_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel_username TEXT UNIQUE, channel_link TEXT, is_active INTEGER DEFAULT 1, added_at TEXT, added_by INTEGER)''')
-        
-        # Ratings table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS ratings (user_id INTEGER, media_id INTEGER, rating INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
-        
-        # Watch history table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS watch_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, part_number INTEGER, watched_at TEXT)''')
-        
-        # Referrals table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS referrals (id INTEGER PRIMARY KEY AUTOINCREMENT, referrer_id INTEGER, referred_id INTEGER, is_rewarded INTEGER DEFAULT 0, created_at TEXT)''')
-        
-        # Daily stats table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS daily_stats (date TEXT PRIMARY KEY, new_users INTEGER DEFAULT 0, active_users INTEGER DEFAULT 0, total_views INTEGER DEFAULT 0, new_media INTEGER DEFAULT 0)''')
-        
-        # Reports table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', created_at TEXT)''')
-        
-        # Multi part sessions table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS multi_part_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, media_name TEXT, parts_data TEXT, total_parts INTEGER DEFAULT 0, created_at TEXT)''')
-        
-        # Suggestions table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, suggestion TEXT, status TEXT DEFAULT 'pending', created_at TEXT, responded_at TEXT)''')
-        
-        # Groups table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, title TEXT, username TEXT, added_by INTEGER, added_at TEXT, is_active INTEGER DEFAULT 1)''')
-        
-        # Likes table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, media_id INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
-        
-        # Comments table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, username TEXT, text TEXT, created_at TEXT)''')
-        
-        # Mini app users table
-        await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
-        
-        await self.conn.commit()
-        
-        # Create indexes
-        try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
-        except: pass
-        try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
-        except: pass
-        try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
-        except: pass
-        
-        await self.conn.commit()
-        
-        # Default admins
-        now = datetime.now().isoformat()
-        for admin_id in ADMINS:
-            await self.conn.execute("INSERT OR IGNORE INTO admins (user_id, added_by, added_at) VALUES (?,?,?)", (admin_id, admin_id, now))
-        await self.conn.commit()
-        
-        # Daily stats
-        today = datetime.now().strftime("%Y-%m-%d")
-        await self.conn.execute("INSERT OR IGNORE INTO daily_stats (date) VALUES (?)", (today,))
-        await self.conn.commit()
-        
-        logger.info("✅ All tables created")
+    # Media table
+    await self.conn.execute('''
+    CREATE TABLE IF NOT EXISTS media (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code INTEGER UNIQUE NOT NULL,
+        name TEXT UNIQUE NOT NULL,
+        genre TEXT, status TEXT DEFAULT 'ongoing',
+        total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
+        rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
+        is_vip INTEGER DEFAULT 0, image_url TEXT,
+        description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
+        release_year INTEGER, created_at TEXT, updated_at TEXT,
+        post_message_id INTEGER, post_channel TEXT
+    )''')
+    
+    # Parts table
+    await self.conn.execute('''
+    CREATE TABLE IF NOT EXISTS parts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER, part_number INTEGER,
+        file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
+        duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
+        views INTEGER DEFAULT 0, created_at TEXT,
+        post_message_id INTEGER, post_channel TEXT,
+        FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
+    )''')
+    
+    # Users table
+    await self.conn.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY, username TEXT,
+        first_name TEXT, last_name TEXT, phone TEXT,
+        is_vip INTEGER DEFAULT 0, vip_expiry TEXT,
+        is_blocked INTEGER DEFAULT 0, language TEXT DEFAULT 'uz',
+        registered_at TEXT, last_active TEXT, total_views INTEGER DEFAULT 0,
+        is_subscribed INTEGER DEFAULT 0
+    )''')
+    
+    # Admins table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS admins (user_id INTEGER PRIMARY KEY, added_by INTEGER, added_at TEXT, permissions TEXT DEFAULT 'all')''')
+    
+    # Favorites table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS favorites (user_id INTEGER, media_id INTEGER, added_at TEXT, PRIMARY KEY (user_id, media_id))''')
+    
+    # Notifications table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS notifications (user_id INTEGER, media_id INTEGER, media_name TEXT, is_active INTEGER DEFAULT 1, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+    
+    # VIP requests table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS vip_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, phone_number TEXT, amount INTEGER, payment_proof TEXT, status TEXT DEFAULT 'pending', created_at TEXT, processed_at TEXT, processed_by INTEGER)''')
+    
+    # Forced channels table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS forced_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel_username TEXT UNIQUE, channel_link TEXT, is_active INTEGER DEFAULT 1, added_at TEXT, added_by INTEGER)''')
+    
+    # Ratings table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS ratings (user_id INTEGER, media_id INTEGER, rating INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+    
+    # Watch history table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS watch_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, part_number INTEGER, watched_at TEXT)''')
+    
+    # Referrals table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS referrals (id INTEGER PRIMARY KEY AUTOINCREMENT, referrer_id INTEGER, referred_id INTEGER, is_rewarded INTEGER DEFAULT 0, created_at TEXT)''')
+    
+    # Daily stats table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS daily_stats (date TEXT PRIMARY KEY, new_users INTEGER DEFAULT 0, active_users INTEGER DEFAULT 0, total_views INTEGER DEFAULT 0, new_media INTEGER DEFAULT 0)''')
+    
+    # Reports table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', created_at TEXT)''')
+    
+    # Multi part sessions table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS multi_part_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, media_name TEXT, parts_data TEXT, total_parts INTEGER DEFAULT 0, created_at TEXT)''')
+    
+    # Suggestions table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, suggestion TEXT, status TEXT DEFAULT 'pending', created_at TEXT, responded_at TEXT)''')
+    
+    # Groups table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, title TEXT, username TEXT, added_by INTEGER, added_at TEXT, is_active INTEGER DEFAULT 1)''')
+    
+    # Likes table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, media_id INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+    
+    # Comments table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, username TEXT, text TEXT, created_at TEXT)''')
+    
+    # Mini app users table
+    await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
+    
+    # ================= YANGI QO'SHILGAN GROUP SETTINGS TABLE =================
+    # Group settings table (guruh sozlamalari uchun)
+    await self.conn.execute('''
+    CREATE TABLE IF NOT EXISTS group_settings (
+        group_id INTEGER PRIMARY KEY,
+        bot_enabled INTEGER DEFAULT 1,
+        only_commands INTEGER DEFAULT 1,
+        welcome_message TEXT,
+        updated_at TEXT
+    )''')
+    
+    await self.conn.commit()
+    
+    # Create indexes
+    try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
+    except: pass
+    try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
+    except: pass
+    try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
+    except: pass
+    
+    await self.conn.commit()
+    
+    # Default admins
+    now = datetime.now().isoformat()
+    for admin_id in ADMINS:
+        await self.conn.execute("INSERT OR IGNORE INTO admins (user_id, added_by, added_at) VALUES (?,?,?)", (admin_id, admin_id, now))
+    await self.conn.commit()
+    
+    # Daily stats
+    today = datetime.now().strftime("%Y-%m-%d")
+    await self.conn.execute("INSERT OR IGNORE INTO daily_stats (date) VALUES (?)", (today,))
+    await self.conn.commit()
+    
+    logger.info("✅ All tables created")
     
     async def _migrate_tables(self):
         """Yo'q ustunlarni qo'shish"""
@@ -311,6 +322,47 @@ class Database:
         await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE is_vip=1 AND vip_expiry<?", 
                                (datetime.now().isoformat(),))
         await self.conn.commit()
+
+    async def get_group_settings(self, group_id):
+    """Guruh sozlamalarini olish"""
+    try:
+        async with self.conn.execute(
+            "SELECT bot_enabled, only_commands FROM group_settings WHERE group_id=?",
+            (group_id,)
+        ) as c:
+            row = await c.fetchone()
+            if not row:
+                # Default sozlamalar
+                await self.conn.execute(
+                    "INSERT INTO group_settings (group_id, bot_enabled, only_commands) VALUES (?,?,?)",
+                    (group_id, 1, 1)
+                )
+                await self.conn.commit()
+                return {"bot_enabled": 1, "only_commands": 1}
+            return {"bot_enabled": row["bot_enabled"], "only_commands": row["only_commands"]}
+    except Exception as e:
+        print(f"❌ Error getting group settings: {e}")
+        return {"bot_enabled": 1, "only_commands": 1}
+
+
+async def update_group_settings(self, group_id, bot_enabled=None, only_commands=None):
+    """Guruh sozlamalarini yangilash"""
+    try:
+        if bot_enabled is not None:
+            await self.conn.execute(
+                "UPDATE group_settings SET bot_enabled=? WHERE group_id=?",
+                (1 if bot_enabled else 0, group_id)
+            )
+        if only_commands is not None:
+            await self.conn.execute(
+                "UPDATE group_settings SET only_commands=? WHERE group_id=?",
+                (1 if only_commands else 0, group_id)
+            )
+        await self.conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Error updating group settings: {e}")
+        return False
     
     async def add_vip_request(self, uid, phone, amount, proof=""):
         now = datetime.now().isoformat()
@@ -900,28 +952,48 @@ async def should_reply_in_group(message: Message) -> bool:
     """Guruhda bot javob berishi kerakligini tekshiradi"""
     chat_type = message.chat.type
     
+    # Faqat guruh va superguruhlar uchun
     if chat_type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
         return True
     
-    settings = await db.get_group_settings(message.chat.id)
+    try:
+        # Guruh sozlamalarini olish
+        settings = await db.get_group_settings(message.chat.id)
+        
+        # Bot o'chirilgan bo'lsa
+        if not settings.get("bot_enabled", 1):
+            return False
+    except Exception as e:
+        print(f"Error getting group settings: {e}")
+        return True
     
-    if not settings.get("bot_enabled", 1):
-        return False
-    
-    bot_username = (await bot.get_me()).username
+    # Bot va username
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
     text = message.text or message.caption or ""
     
+    # 1. Komanda (slash bilan boshlangan)
     if text.startswith('/'):
-        allowed_commands = ['/start', '/help', '/anime', '/search', '/code', '/watch', '/random']
+        allowed_commands = [
+            '/start', '/help', '/anime', '/search', 
+            '/code', '/watch', '/random', '/bot_on', 
+            '/bot_off', '/commands_only', '/all_messages'
+        ]
         for cmd in allowed_commands:
-            if text.startswith(cmd):
+            if text.lower().startswith(cmd):
                 return True
         return False
     
+    # 2. Bot @mention qilingan
     if f"@{bot_username}" in text.lower():
         return True
     
+    # 3. Botga to'g'ridan-to'g'ri javob
     if message.reply_to_message and message.reply_to_message.from_user.id == bot.id:
+        return True
+    
+    # 4. Faqat raqam yozilgan bo'lsa (kod qidirish)
+    if text.strip().isdigit():
         return True
     
     return False
@@ -1077,6 +1149,7 @@ async def cmd_start(message: Message):
     if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
         await db.add_group(message.chat.id, message.chat.title or "", message.chat.username or "", user_id)
         
+        # Bot qo'shilganini bildirish (faqat adminlarga)
         member = await bot.get_chat_member(message.chat.id, user_id)
         if member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
             await message.answer(
@@ -1088,8 +1161,14 @@ async def cmd_start(message: Message):
                 "• <code>/watch [kod]</code> - Tomosha qilish\n"
                 "• <code>/random</code> - Random anime\n"
                 "• <code>/help</code> - Yordam\n\n"
-                "⚠️ <b>Eslatma:</b> Bot faqat komandalarga javob beradi!\n"
-                "Botni @mention qilib ham ishlatishingiz mumkin."
+                "⚙️ <b>Adminlar uchun:</b>\n"
+                "• <code>/bot_on</code> - Botni yoqish\n"
+                "• <code>/bot_off</code> - Botni o'chirish\n"
+                "• <code>/commands_only</code> - Faqat komandalar\n"
+                "• <code>/all_messages</code> - Barcha xabarlar\n\n"
+                "💡 Botni @mention qilib ham ishlatishingiz mumkin!\n"
+                f"📢 <b>Kanal:</b> {MAIN_CHANNEL}\n"
+                f"🆘 <b>Yordam:</b> {SUPPORT_USERNAME}"
             )
         return
     
@@ -1309,7 +1388,11 @@ async def anime_command(message: Message):
     
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
-        await message.answer("❌ Iltimos, anime nomini kiriting:\n<code>/anime One Piece</code>")
+        await message.answer(
+            "❌ Iltimos, anime nomini kiriting:\n"
+            "<code>/anime One Piece</code>\n\n"
+            "🔍 Yoki @ mention qilib yozing: <code>@AniComplex_Rasmiy_bot One Piece</code>"
+        )
         return
     
     query = args[1].strip()
@@ -1318,19 +1401,29 @@ async def anime_command(message: Message):
     filtered = [m for m in results if not m["is_vip"] or user_is_vip]
     
     if not filtered:
-        await message.answer(f"❌ '{query}' bo'yicha topilmadi!")
+        await message.answer(f"❌ '{query}' bo'yicha hech narsa topilmadi!")
         return
     
     builder = InlineKeyboardBuilder()
     for m in filtered[:10]:
-        builder.button(text=f"{m['name']} [{m['code']}]", callback_data=f"view_media_{m['id']}")
+        rating_star = "⭐" if (m["rating"] or 0) > 7 else ""
+        builder.button(
+            text=f"{rating_star} {m['name']} [{m['code']}] - {m['total_parts']} qism",
+            callback_data=f"view_media_{m['id']}"
+        )
     builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="❓ Yordam", callback_data="group_help"))
     
-    await message.answer(f"🔍 '{query}' bo'yicha {len(filtered)} ta natija:", reply_markup=builder.as_markup())
+    await message.answer(
+        f"🔍 <b>'{query}' bo'yicha natijalar</b>\n\n📊 {len(filtered)} ta anime topildi",
+        reply_markup=builder.as_markup()
+    )
+
 
 @dp.message(Command("search"))
 async def search_command(message: Message):
     await anime_command(message)
+
 
 @dp.message(Command("code"))
 async def code_command(message: Message):
@@ -1351,6 +1444,7 @@ async def code_command(message: Message):
             await message.answer(f"❌ {code} kodli anime topilmadi!")
     except ValueError:
         await message.answer("❌ Kod faqat raqam bo'lishi kerak!")
+
 
 @dp.message(Command("watch"))
 async def watch_command(message: Message):
@@ -1381,12 +1475,17 @@ async def watch_command(message: Message):
         
         builder = InlineKeyboardBuilder()
         for part in parts[:20]:
-            builder.button(text=f"{part['part_number']}-qism", callback_data=f"watch_part_{part['id']}")
+            vip = "👑 " if part["is_vip"] else ""
+            builder.button(text=f"{vip}{part['part_number']}-qism", callback_data=f"watch_part_{part['id']}")
         builder.adjust(5)
         
-        await message.answer(f"📺 <b>{media['name']}</b>\n\nQismni tanlang:", reply_markup=builder.as_markup())
+        await message.answer(
+            f"📺 <b>{media['name']}</b>\n\n🎬 Qismni tanlang:",
+            reply_markup=builder.as_markup()
+        )
     except ValueError:
         await message.answer("❌ Kod faqat raqam bo'lishi kerak!")
+
 
 @dp.message(Command("random"))
 async def random_command(message: Message):
@@ -1402,6 +1501,7 @@ async def random_command(message: Message):
     
     await show_media_details(message, media["id"], user_is_vip)
 
+
 @dp.message(Command("help"))
 async def help_command(message: Message):
     if not await should_reply_in_group(message):
@@ -1414,11 +1514,16 @@ async def help_command(message: Message):
             "📌 <b>Qanday ishlatiladi:</b>\n\n"
             "🔍 <b>Anime qidirish:</b>\n"
             "   • <code>/anime [nomi]</code> - Nom bo'yicha qidirish\n"
-            "   • <code>/code [raqam]</code> - Kod orqali topish\n\n"
-            "📺 <b>Tomosha qilish:</b>\n"
-            "   • <code>/watch [kod]</code> - Animani ochish\n"
+            "   • <code>/code [raqam]</code> - Kod orqali topish\n"
+            "   • <code>/watch [kod]</code> - Tomosha qilish\n"
             "   • <code>/random</code> - Random anime\n\n"
-            "💡 <b>Botni @mention qilib ham ishlatishingiz mumkin!</b>\n\n"
+            "💡 <b>Botni @mention qilib ham ishlatishingiz mumkin!</b>\n"
+            "   Masalan: <code>@AniComplex_Rasmiy_bot One Piece</code>\n\n"
+            "⚙️ <b>Adminlar uchun:</b>\n"
+            "   • <code>/bot_on</code> - Botni yoqish\n"
+            "   • <code>/bot_off</code> - Botni o'chirish\n"
+            "   • <code>/commands_only</code> - Faqat komandalar\n"
+            "   • <code>/all_messages</code> - Barcha xabarlarga javob\n\n"
             f"📢 <b>Kanal:</b> {MAIN_CHANNEL}\n"
             f"🆘 <b>Yordam:</b> {SUPPORT_USERNAME}"
         )
@@ -2552,18 +2657,42 @@ async def add_part_number(message: Message, state: FSMContext):
 @dp.message(AdminStates.waiting_part_video, F.video)
 async def add_part_video(message: Message, state: FSMContext):
     data = await state.get_data()
-    part_id = await db.add_part(
-        media_id=data["media_id"], part_number=data["part_number"],
-        file_id=message.video.file_id, caption=message.caption or "",
-        duration=message.video.duration or 0, file_size=message.video.file_size or 0
-    )
-    await message.answer(f"✅ <b>{data['media_name']}</b> ning <b>{data['part_number']}-qismi</b> qo'shildi!\n\n🔔 Bildirishnoma yoqilganlarga xabar yuborildi.")
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📢 Kanalga post qilish", callback_data=f"post_part_{part_id}")],
-        [InlineKeyboardButton(text="❌ Keyinroq", callback_data="cancel_post")]
-    ])
-    await message.answer("📢 Bu qismni kanalga post qilasizmi?", reply_markup=keyboard)
+    # Video ma'lumotlarini olish
+    video = message.video
+    file_id = video.file_id
+    duration = video.duration or 0
+    file_size = video.file_size or 0
+    caption = message.caption or ""
+    
+    # Bazaga qism qo'shish
+    part_id = await db.add_part(
+        media_id=data["media_id"],
+        pnum=data["part_number"],
+        file_id=file_id,
+        caption=caption,
+        duration=duration,
+        file_size=file_size
+    )
+    
+    if part_id:
+        await message.answer(
+            f"✅ <b>{data['media_name']}</b> ning <b>{data['part_number']}-qismi</b> qo'shildi!\n\n"
+            f"📹 Video ID: <code>{file_id[:20]}...</code>\n"
+            f"⏱ Davomiyligi: {duration} sekund\n"
+            f"💾 Hajmi: {file_size // 1024} KB\n\n"
+            f"🔔 Bildirishnoma yoqilganlarga xabar yuborildi."
+        )
+        
+        # Kanalga post qilish uchun tugma
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Kanalga post qilish", callback_data=f"post_part_{part_id}")],
+            [InlineKeyboardButton(text="❌ Keyinroq", callback_data="cancel_post")]
+        ])
+        await message.answer("📢 Bu qismni kanalga post qilasizmi?", reply_markup=keyboard)
+    else:
+        await message.answer("❌ Qism qo'shishda xatolik yuz berdi!")
+    
     await state.clear()
 
 # ================= ADMIN PART POST =================
@@ -3257,33 +3386,97 @@ async def vip_expiry_checker():
         logger.info("VIP expiry checked")
 
 # ================= GURUH ADMIN KOMANDALARI =================
-@dp.message(Command("enable_bot"))
+@dp.message(Command("bot_on"))
 async def enable_bot(message: Message):
     if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
         await message.answer("❌ Bu komanda faqat guruhlarda ishlaydi!")
         return
     
-    member = await bot.get_chat_member(message.chat.id, message.from_user.id)
-    if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
-        await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+    # Admin tekshirish
+    try:
+        member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
+            await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+            return
+    except:
+        await message.answer("❌ Ruxsat tekshirishda xatolik!")
         return
     
     await db.update_group_settings(message.chat.id, bot_enabled=True)
-    await message.answer("✅ <b>Bot yoqildi!</b>\n\nBot endi komandalarga javob beradi.")
+    await message.answer(
+        "✅ <b>Bot yoqildi!</b>\n\n"
+        "Bot endi komandalarga javob beradi.\n"
+        "🔕 O'chirish: <code>/bot_off</code>"
+    )
 
-@dp.message(Command("disable_bot"))
+
+@dp.message(Command("bot_off"))
 async def disable_bot(message: Message):
     if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
         await message.answer("❌ Bu komanda faqat guruhlarda ishlaydi!")
         return
     
-    member = await bot.get_chat_member(message.chat.id, message.from_user.id)
-    if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
-        await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+    try:
+        member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
+            await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+            return
+    except:
+        await message.answer("❌ Ruxsat tekshirishda xatolik!")
         return
     
     await db.update_group_settings(message.chat.id, bot_enabled=False)
-    await message.answer("❌ <b>Bot o'chirildi!</b>\n\nBot endi javob bermaydi. Qayta yoqish: /enable_bot")
+    await message.answer(
+        "❌ <b>Bot o'chirildi!</b>\n\n"
+        "Bot endi javob bermaydi.\n"
+        "✅ Qayta yoqish: <code>/bot_on</code>"
+    )
+
+
+@dp.message(Command("commands_only"))
+async def commands_only(message: Message):
+    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        await message.answer("❌ Bu komanda faqat guruhlarda ishlaydi!")
+        return
+    
+    try:
+        member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
+            await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+            return
+    except:
+        await message.answer("❌ Ruxsat tekshirishda xatolik!")
+        return
+    
+    await db.update_group_settings(message.chat.id, only_commands=True)
+    await message.answer(
+        "✅ <b>Faqat komandalar rejimi yoqildi!</b>\n\n"
+        "Bot faqat / bilan boshlangan komandalarga va @mention qilinganda javob beradi.\n"
+        "📝 Barcha xabarlar uchun: <code>/all_messages</code>"
+    )
+
+
+@dp.message(Command("all_messages"))
+async def all_messages(message: Message):
+    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        await message.answer("❌ Bu komanda faqat guruhlarda ishlaydi!")
+        return
+    
+    try:
+        member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR] and message.from_user.id not in ADMINS:
+            await message.answer("❌ Faqat guruh adminlari bu komandani ishlata oladi!")
+            return
+    except:
+        await message.answer("❌ Ruxsat tekshirishda xatolik!")
+        return
+    
+    await db.update_group_settings(message.chat.id, only_commands=False)
+    await message.answer(
+        "✅ <b>Barcha xabarlar rejimi yoqildi!</b>\n\n"
+        "Bot barcha xabarlarga javob beradi (faqat kod bo'lsa).\n"
+        "🔒 Faqat komandalar uchun: <code>/commands_only</code>"
+    )
 
 # ================= MINI APP SERVER (SODDA VERSIYA) =================
 MINI_APP_HTML = '''<!DOCTYPE html>
@@ -4778,16 +4971,23 @@ function checkAuth() {
 }
 
 function register() {
+    console.log("🔵 Register started");
+    
     const firstName = document.getElementById('firstNameInput').value.trim();
     const username = document.getElementById('usernameInput').value.trim();
+    
+    console.log("First name:", firstName);
+    console.log("Username:", username);
     
     if (!firstName) {
         showToast("❌ Iltimos, ismingizni kiriting!", true);
         tg.HapticFeedback.notificationOccurred('error');
+        console.log("❌ First name is empty");
         return;
     }
     
     const telegramUser = tg.initDataUnsafe?.user;
+    console.log("Telegram user:", telegramUser);
     
     currentUser = {
         id: telegramUser?.id || Date.now(),
@@ -4805,26 +5005,49 @@ function register() {
         }
     };
     
-    saveUserData();
+    console.log("Current user:", currentUser);
+    
+    // LocalStorage ga saqlash
+    localStorage.setItem('anicomplex_user', JSON.stringify(currentUser));
+    console.log("✅ Saved to localStorage");
     
     // API ga yuborish
     fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentUser)
-    }).catch(() => console.log('API not available'));
+    }).catch(err => console.log('API register error:', err));
     
     showToast(`✅ Xush kelibsiz, ${firstName}!`);
     tg.HapticFeedback.notificationOccurred('success');
     
-    document.getElementById('authSection').classList.add('hidden');
-    document.getElementById('mainSection').classList.remove('hidden');
-    document.getElementById('bottomNav').classList.remove('hidden');
-    document.getElementById('userBadge').classList.remove('hidden');
-    document.getElementById('userBadge').innerHTML = `👤 ${firstName}`;
+    // Elementlarni ko'rsatish/yashirish
+    const authSection = document.getElementById('authSection');
+    const mainSection = document.getElementById('mainSection');
+    const bottomNav = document.getElementById('bottomNav');
+    const userBadge = document.getElementById('userBadge');
     
+    console.log("Hiding auth, showing main...");
+    
+    if (authSection) authSection.classList.add('hidden');
+    if (mainSection) mainSection.classList.remove('hidden');
+    if (bottomNav) bottomNav.classList.remove('hidden');
+    if (userBadge) {
+        userBadge.classList.remove('hidden');
+        userBadge.innerHTML = `👤 ${firstName}`;
+    }
+    
+    // Sevimlilarni yuklash
+    try {
+        const fav = localStorage.getItem('anicomplex_favorites');
+        if (fav) favorites = JSON.parse(fav);
+    } catch(e) {
+        favorites = [];
+    }
+    
+    // Media yuklash
     loadMedia();
-    loadUserPreferences();
+    console.log("✅ Register finished successfully!");
 }
 
 function loadUserPreferences() {
