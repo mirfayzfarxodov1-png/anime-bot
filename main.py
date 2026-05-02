@@ -79,7 +79,6 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# ================= DATABASE =================
 DB_NAME = 'anime_bot.db'
 
 class Database:
@@ -93,144 +92,133 @@ class Database:
         await self._migrate_tables()
         logger.info("✅ Database connected")
     
-class Database:
-    def __init__(self):
-        self.conn = None
-    
-    async def connect(self):
-        self.conn = await aiosqlite.connect(DB_NAME)
-        self.conn.row_factory = aiosqlite.Row
-        await self._init_tables()
-        await self._migrate_tables()
-        logger.info("✅ Database connected")
-    
-   async def _init_tables(self):
-    # Media table
-    await self.conn.execute('''
-    CREATE TABLE IF NOT EXISTS media (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        code INTEGER UNIQUE NOT NULL,
-        name TEXT UNIQUE NOT NULL,
-        genre TEXT, status TEXT DEFAULT 'ongoing',
-        total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
-        rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
-        is_vip INTEGER DEFAULT 0, image_url TEXT,
-        description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
-        release_year INTEGER, created_at TEXT, updated_at TEXT,
-        post_message_id INTEGER, post_channel TEXT
-    )''')
-    
-    # Parts table
-    await self.conn.execute('''
-    CREATE TABLE IF NOT EXISTS parts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        media_id INTEGER, part_number INTEGER,
-        file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
-        duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
-        views INTEGER DEFAULT 0, created_at TEXT,
-        post_message_id INTEGER, post_channel TEXT,
-        FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
-    )''')
-    
-    # Users table
-    await self.conn.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY, username TEXT,
-        first_name TEXT, last_name TEXT, phone TEXT,
-        is_vip INTEGER DEFAULT 0, vip_expiry TEXT,
-        is_blocked INTEGER DEFAULT 0, language TEXT DEFAULT 'uz',
-        registered_at TEXT, last_active TEXT, total_views INTEGER DEFAULT 0,
-        is_subscribed INTEGER DEFAULT 0
-    )''')
-    
-    # Admins table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS admins (user_id INTEGER PRIMARY KEY, added_by INTEGER, added_at TEXT, permissions TEXT DEFAULT 'all')''')
-    
-    # Favorites table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS favorites (user_id INTEGER, media_id INTEGER, added_at TEXT, PRIMARY KEY (user_id, media_id))''')
-    
-    # Notifications table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS notifications (user_id INTEGER, media_id INTEGER, media_name TEXT, is_active INTEGER DEFAULT 1, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
-    
-    # VIP requests table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS vip_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, phone_number TEXT, amount INTEGER, payment_proof TEXT, status TEXT DEFAULT 'pending', created_at TEXT, processed_at TEXT, processed_by INTEGER)''')
-    
-    # Forced channels table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS forced_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel_username TEXT UNIQUE, channel_link TEXT, is_active INTEGER DEFAULT 1, added_at TEXT, added_by INTEGER)''')
-    
-    # Ratings table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS ratings (user_id INTEGER, media_id INTEGER, rating INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
-    
-    # Watch history table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS watch_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, part_number INTEGER, watched_at TEXT)''')
-    
-    # Referrals table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS referrals (id INTEGER PRIMARY KEY AUTOINCREMENT, referrer_id INTEGER, referred_id INTEGER, is_rewarded INTEGER DEFAULT 0, created_at TEXT)''')
-    
-    # Daily stats table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS daily_stats (date TEXT PRIMARY KEY, new_users INTEGER DEFAULT 0, active_users INTEGER DEFAULT 0, total_views INTEGER DEFAULT 0, new_media INTEGER DEFAULT 0)''')
-    
-    # Reports table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', created_at TEXT)''')
-    
-    # Multi part sessions table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS multi_part_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, media_name TEXT, parts_data TEXT, total_parts INTEGER DEFAULT 0, created_at TEXT)''')
-    
-    # Suggestions table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, suggestion TEXT, status TEXT DEFAULT 'pending', created_at TEXT, responded_at TEXT)''')
-    
-    # Groups table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, title TEXT, username TEXT, added_by INTEGER, added_at TEXT, is_active INTEGER DEFAULT 1)''')
-    
-    # Likes table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, media_id INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
-    
-    # Comments table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, username TEXT, text TEXT, created_at TEXT)''')
-    
-    # Mini app users table
-    await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
-    
-    # Group settings table
-    await self.conn.execute('''
-    CREATE TABLE IF NOT EXISTS group_settings (
-        group_id INTEGER PRIMARY KEY,
-        bot_enabled INTEGER DEFAULT 1,
-        only_commands INTEGER DEFAULT 1,
-        welcome_message TEXT,
-        updated_at TEXT
-    )''')
-    
-    await self.conn.commit()
-    
-    # Create indexes
-    try:
-        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
-    except:
-        pass
-    try:
-        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
-    except:
-        pass
-    try:
-        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
-    except:
-        pass
-    
-    await self.conn.commit()
-    
-    # Default admins
-    now = datetime.now().isoformat()
-    for admin_id in ADMINS:
-        await self.conn.execute("INSERT OR IGNORE INTO admins (user_id, added_by, added_at) VALUES (?,?,?)", (admin_id, admin_id, now))
-    await self.conn.commit()
-    
-    # Daily stats
-    today = datetime.now().strftime("%Y-%m-%d")
-    await self.conn.execute("INSERT OR IGNORE INTO daily_stats (date) VALUES (?)", (today,))
-    await self.conn.commit()
-    
-    logger.info("✅ All tables created")
+    async def _init_tables(self):
+        # Media table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code INTEGER UNIQUE NOT NULL,
+            name TEXT UNIQUE NOT NULL,
+            genre TEXT, status TEXT DEFAULT 'ongoing',
+            total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
+            rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
+            is_vip INTEGER DEFAULT 0, image_url TEXT,
+            description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
+            release_year INTEGER, created_at TEXT, updated_at TEXT,
+            post_message_id INTEGER, post_channel TEXT
+        )''')
+        
+        # Parts table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            media_id INTEGER, part_number INTEGER,
+            file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
+            duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
+            views INTEGER DEFAULT 0, created_at TEXT,
+            post_message_id INTEGER, post_channel TEXT,
+            FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
+        )''')
+        
+        # Users table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY, username TEXT,
+            first_name TEXT, last_name TEXT, phone TEXT,
+            is_vip INTEGER DEFAULT 0, vip_expiry TEXT,
+            is_blocked INTEGER DEFAULT 0, language TEXT DEFAULT 'uz',
+            registered_at TEXT, last_active TEXT, total_views INTEGER DEFAULT 0,
+            is_subscribed INTEGER DEFAULT 0
+        )''')
+        
+        # Admins table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS admins (user_id INTEGER PRIMARY KEY, added_by INTEGER, added_at TEXT, permissions TEXT DEFAULT 'all')''')
+        
+        # Favorites table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS favorites (user_id INTEGER, media_id INTEGER, added_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # Notifications table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS notifications (user_id INTEGER, media_id INTEGER, media_name TEXT, is_active INTEGER DEFAULT 1, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # VIP requests table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS vip_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, phone_number TEXT, amount INTEGER, payment_proof TEXT, status TEXT DEFAULT 'pending', created_at TEXT, processed_at TEXT, processed_by INTEGER)''')
+        
+        # Forced channels table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS forced_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, channel_username TEXT UNIQUE, channel_link TEXT, is_active INTEGER DEFAULT 1, added_at TEXT, added_by INTEGER)''')
+        
+        # Ratings table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS ratings (user_id INTEGER, media_id INTEGER, rating INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # Watch history table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS watch_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, part_number INTEGER, watched_at TEXT)''')
+        
+        # Referrals table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS referrals (id INTEGER PRIMARY KEY AUTOINCREMENT, referrer_id INTEGER, referred_id INTEGER, is_rewarded INTEGER DEFAULT 0, created_at TEXT)''')
+        
+        # Daily stats table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS daily_stats (date TEXT PRIMARY KEY, new_users INTEGER DEFAULT 0, active_users INTEGER DEFAULT 0, total_views INTEGER DEFAULT 0, new_media INTEGER DEFAULT 0)''')
+        
+        # Reports table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, reason TEXT, status TEXT DEFAULT 'pending', created_at TEXT)''')
+        
+        # Multi part sessions table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS multi_part_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, media_name TEXT, parts_data TEXT, total_parts INTEGER DEFAULT 0, created_at TEXT)''')
+        
+        # Suggestions table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, suggestion TEXT, status TEXT DEFAULT 'pending', created_at TEXT, responded_at TEXT)''')
+        
+        # Groups table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, title TEXT, username TEXT, added_by INTEGER, added_at TEXT, is_active INTEGER DEFAULT 1)''')
+        
+        # Likes table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS likes (user_id INTEGER, media_id INTEGER, created_at TEXT, PRIMARY KEY (user_id, media_id))''')
+        
+        # Comments table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, media_id INTEGER, username TEXT, text TEXT, created_at TEXT)''')
+        
+        # Mini app users table
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
+        
+        # Group settings table
+        await self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS group_settings (
+            group_id INTEGER PRIMARY KEY,
+            bot_enabled INTEGER DEFAULT 1,
+            only_commands INTEGER DEFAULT 1,
+            welcome_message TEXT,
+            updated_at TEXT
+        )''')
+        
+        await self.conn.commit()
+        
+        # Create indexes
+        try:
+            await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
+        except:
+            pass
+        try:
+            await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
+        except:
+            pass
+        try:
+            await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
+        except:
+            pass
+        
+        await self.conn.commit()
+        
+        # Default admins
+        now = datetime.now().isoformat()
+        for admin_id in ADMINS:
+            await self.conn.execute("INSERT OR IGNORE INTO admins (user_id, added_by, added_at) VALUES (?,?,?)", (admin_id, admin_id, now))
+        await self.conn.commit()
+        
+        # Daily stats
+        today = datetime.now().strftime("%Y-%m-%d")
+        await self.conn.execute("INSERT OR IGNORE INTO daily_stats (date) VALUES (?)", (today,))
+        await self.conn.commit()
+        
+        logger.info("✅ All tables created")
     
     async def _migrate_tables(self):
         """Yo'q ustunlarni qo'shish"""
@@ -338,8 +326,7 @@ class Database:
         await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE is_vip=1 AND vip_expiry<?", 
                                (datetime.now().isoformat(),))
         await self.conn.commit()
-
-       # ================= GROUP SETTINGS METHODS =================
+    
     async def get_group_settings(self, group_id):
         """Guruh sozlamalarini olish"""
         try:
@@ -349,7 +336,6 @@ class Database:
             ) as c:
                 row = await c.fetchone()
                 if not row:
-                    # Default sozlamalar
                     await self.conn.execute(
                         "INSERT INTO group_settings (group_id, bot_enabled, only_commands) VALUES (?,?,?)",
                         (group_id, 1, 1)
@@ -360,7 +346,7 @@ class Database:
         except Exception as e:
             print(f"❌ Error getting group settings: {e}")
             return {"bot_enabled": 1, "only_commands": 1}
-
+    
     async def update_group_settings(self, group_id, bot_enabled=None, only_commands=None):
         """Guruh sozlamalarini yangilash"""
         try:
@@ -379,13 +365,19 @@ class Database:
         except Exception as e:
             print(f"❌ Error updating group settings: {e}")
             return False
-            
+    
     async def add_vip_request(self, uid, phone, amount, proof=""):
         now = datetime.now().isoformat()
         await self.conn.execute("INSERT INTO vip_requests (user_id,phone_number,amount,payment_proof,status,created_at) VALUES(?,?,?,?,'pending',?)", 
                                (uid, phone, amount, proof, now))
         await self.conn.commit()
         return await self.get_last_insert_id()
+    
+    async def close(self):
+        if self.conn:
+            await self.conn.close()
+
+db = Database()
     
     async def get_vip_requests(self, status="pending"):
         async with self.conn.execute("SELECT * FROM vip_requests WHERE status=? ORDER BY created_at DESC", (status,)) as c:
