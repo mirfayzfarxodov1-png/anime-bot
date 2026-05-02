@@ -965,32 +965,34 @@ async def should_reply_in_group(message: Message) -> bool:
         return True
     
     try:
-        # Guruh sozlamalarini olish
         settings = await db.get_group_settings(message.chat.id)
-        
-        # Bot o'chirilgan bo'lsa
         if not settings.get("bot_enabled", 1):
             return False
     except Exception as e:
         print(f"Error getting group settings: {e}")
         return True
     
-    # Bot va username
     bot_info = await bot.get_me()
     bot_username = bot_info.username
-    text = message.text or message.caption or ""
+    text = (message.text or message.caption or "").lower()
     
-    # 1. Komanda (slash bilan boshlangan)
+    # 1. Komandalar
     if text.startswith('/'):
-        allowed_commands = [
-            '/start', '/help', '/anime', '/search', 
-            '/code', '/watch', '/random', '/bot_on', 
-            '/bot_off', '/commands_only', '/all_messages'
-        ]
+        allowed_commands = ['/start', '/help', '/anime', '/search', '/code', '/watch', '/random']
         for cmd in allowed_commands:
-            if text.lower().startswith(cmd):
+            if text.startswith(cmd):
                 return True
         return False
+    
+    # 2. Bot @mention qilingan
+    if f"@{bot_username.lower()}" in text:
+        return True
+    
+    # 3. Botga reply
+    if message.reply_to_message and message.reply_to_message.from_user.id == bot.id:
+        return True
+    
+    return False
     
     # 2. Bot @mention qilingan
     if f"@{bot_username}" in text.lower():
@@ -1149,35 +1151,19 @@ async def cmd_start(message: Message):
     user_id = message.from_user.id
     chat_type = message.chat.type
     
-    await db.add_user(user_id, message.from_user.username or "", message.from_user.first_name or "", message.from_user.last_name or "")
-    await db.update_activity(user_id)
-    user_is_vip = await db.is_vip(user_id)
-    
     # Guruhda start
     if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
         await db.add_group(message.chat.id, message.chat.title or "", message.chat.username or "", user_id)
-        
-        # Bot qo'shilganini bildirish (faqat adminlarga)
-        member = await bot.get_chat_member(message.chat.id, user_id)
-        if member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
-            await message.answer(
-                "🤖 <b>AniComplex Guruh Boti</b>\n\n"
-                "✅ Bot guruhga muvaffaqiyatli qo'shildi!\n\n"
-                "📌 <b>Qanday ishlatiladi:</b>\n"
-                "• <code>/anime [nomi]</code> - Anime qidirish\n"
-                "• <code>/code [raqam]</code> - Kod orqali topish\n"
-                "• <code>/watch [kod]</code> - Tomosha qilish\n"
-                "• <code>/random</code> - Random anime\n"
-                "• <code>/help</code> - Yordam\n\n"
-                "⚙️ <b>Adminlar uchun:</b>\n"
-                "• <code>/bot_on</code> - Botni yoqish\n"
-                "• <code>/bot_off</code> - Botni o'chirish\n"
-                "• <code>/commands_only</code> - Faqat komandalar\n"
-                "• <code>/all_messages</code> - Barcha xabarlar\n\n"
-                "💡 Botni @mention qilib ham ishlatishingiz mumkin!\n"
-                f"📢 <b>Kanal:</b> {MAIN_CHANNEL}\n"
-                f"🆘 <b>Yordam:</b> {SUPPORT_USERNAME}"
-            )
+        await message.answer(
+            "🤖 <b>AniComplex Guruh Boti ishga tushdi!</b>\n\n"
+            "📌 <b>Komandalar:</b>\n"
+            "• <code>/anime [nomi]</code> - Anime qidirish\n"
+            "• <code>/code [raqam]</code> - Kod orqali topish\n"
+            "• <code>/watch [kod]</code> - Tomosha qilish\n"
+            "• <code>/random</code> - Random anime\n"
+            "• <code>/help</code> - Yordam\n\n"
+            "💡 Botni @mention qilib ham ishlatishingiz mumkin!"
+        )
         return
     
     # Shaxsiy chat (davomi...)
@@ -2701,21 +2687,14 @@ async def add_part_video(message: Message, state: FSMContext):
     else:
         await message.answer("❌ Qism qo'shishda xatolik yuz berdi!")
     
-    await state.clear()
-
+    await state.clear() 
+    
 # ================= ADMIN PART POST =================
 @dp.callback_query(F.data.startswith("post_part_"))
 async def post_part_start(callback: CallbackQuery, state: FSMContext):
-    if callback.data.startswith("post_part_select_"):
-        return
-    
+    # post_part_123 formatini to'g'ri parse qilish
     try:
-        parts = callback.data.split("_")
-        if len(parts) >= 3 and parts[2].isdigit():
-            part_id = int(parts[2])
-        else:
-            await callback.answer("❌ Noto'g'ri format!", show_alert=True)
-            return
+        part_id = int(callback.data.split("_")[2])
     except:
         await callback.answer("❌ Xatolik!", show_alert=True)
         return
@@ -2726,7 +2705,12 @@ async def post_part_start(callback: CallbackQuery, state: FSMContext):
         return
     
     await state.update_data(part_id=part_id)
-    await callback.message.edit_text(f"📢 <b>Post qilinadigan kanal username'ini kiriting:</b>\n\nMasalan: @AniComplex_Rasmiy\n\n⚠️ Bot kanalda admin bo'lishi shart!\n\n🔙 /cancel")
+    await callback.message.edit_text(
+        "📢 <b>Post qilinadigan kanal username'ini kiriting:</b>\n\n"
+        "Masalan: @AniComplex_Rasmiy\n\n"
+        "⚠️ Bot kanalda admin bo'lishi shart!\n\n"
+        "🔙 Bekor qilish: /cancel"
+    )
     await state.set_state(AdminStates.waiting_part_post)
     await callback.answer()
 
@@ -2735,15 +2719,6 @@ async def post_part_channel(message: Message, state: FSMContext):
     channel = message.text.strip()
     if not channel.startswith("@"):
         channel = "@" + channel
-    
-    try:
-        member = await bot.get_chat_member(channel, bot.id)
-        if member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
-            await message.answer("❌ Bot kanalda admin emas!")
-            return
-    except:
-        await message.answer("❌ Kanal topilmadi!")
-        return
     
     data = await state.get_data()
     part = await db.get_part(data.get("part_id"))
@@ -2756,22 +2731,19 @@ async def post_part_channel(message: Message, state: FSMContext):
     bot_info = await bot.get_me()
     watch_link = f"https://t.me/{bot_info.username}?start=part_{part['id']}"
     
-    text = f"🎬 <b>{media['name']}</b>\n📀 <b>{part['part_number']}-qism</b>\n"
-    if part["caption"]:
-        text += f"\n{part['caption']}\n"
-    text += f"\n🔢 Kod: <code>{media['code']}</code>"
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📺 Tomosha qilish", url=watch_link)],
-        [InlineKeyboardButton(text="📢 Kanal", url=f"https://t.me/{MAIN_CHANNEL.replace('@', '')}")]
-    ])
-    
+    # Video ID ni to'g'ri formatda yuborish
     try:
-        msg = await bot.send_video(channel, part["file_id"], caption=text, reply_markup=keyboard)
-        await db.update_part_post_info(part["id"], msg.message_id, channel)
+        # Video faylni ID orqali yuborish
+        await bot.send_video(
+            chat_id=channel,
+            video=part["file_id"],  # file_id to'g'ridan-to'g'ri ishlatiladi
+            caption=f"🎬 <b>{media['name']}</b>\n📀 <b>{part['part_number']}-qism</b>\n🔢 Kod: {media['code']}\n\n👉 <a href='{watch_link}'>📺 Tomosha qilish</a>",
+            parse_mode=ParseMode.HTML
+        )
         await message.answer(f"✅ Qism {channel} kanaliga post qilindi!")
     except Exception as e:
-        await message.answer(f"❌ Post qilishda xatolik: {e}")
+        await message.answer(f"❌ Post qilishda xatolik: {str(e)[:100]}")
+    
     await state.clear()
 
 # ================= ADMIN PART EDIT =================
@@ -2989,10 +2961,13 @@ async def delete_parts_by_numbers(message: Message, state: FSMContext):
 @dp.callback_query(F.data == "confirm_delete_parts")
 async def confirm_delete_parts(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    media_id, part_numbers = data.get("media_id"), data.get("delete_part_numbers", [])
+    media_id = data.get("media_id")
+    part_numbers = data.get("delete_part_numbers", [])
+    
     if not media_id or not part_numbers:
         await callback.message.edit_text("❌ Ma'lumot topilmadi!")
         await state.clear()
+        await callback.answer()
         return
     
     deleted = 0
@@ -3001,7 +2976,11 @@ async def confirm_delete_parts(callback: CallbackQuery, state: FSMContext):
         if part and await db.delete_part(part["id"]):
             deleted += 1
     
-    await callback.message.edit_text(f"✅ <b>Qismlar o'chirildi!</b>\n\n✅ O'chirilgan: {deleted} ta\n📊 Jami: {len(part_numbers)} ta")
+    await callback.message.edit_text(
+        f"✅ <b>Qismlar o'chirildi!</b>\n\n"
+        f"✅ O'chirilgan: {deleted} ta\n"
+        f"📊 Jami: {len(part_numbers)} ta"
+    )
     await state.clear()
     await callback.answer()
 
@@ -4979,23 +4958,16 @@ function checkAuth() {
 }
 
 function register() {
-    console.log("🔵 Register started");
-    
     const firstName = document.getElementById('firstNameInput').value.trim();
     const username = document.getElementById('usernameInput').value.trim();
     
-    console.log("First name:", firstName);
-    console.log("Username:", username);
-    
     if (!firstName) {
         showToast("❌ Iltimos, ismingizni kiriting!", true);
-        tg.HapticFeedback.notificationOccurred('error');
-        console.log("❌ First name is empty");
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
         return;
     }
     
     const telegramUser = tg.initDataUnsafe?.user;
-    console.log("Telegram user:", telegramUser);
     
     currentUser = {
         id: telegramUser?.id || Date.now(),
@@ -5012,6 +4984,47 @@ function register() {
             auto_play: false
         }
     };
+    
+    // LocalStorage ga saqlash
+    localStorage.setItem('anicomplex_user', JSON.stringify(currentUser));
+    
+    // API ga yuborish (xatolikni inobatga olmaslik kerak)
+    fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentUser)
+    }).catch(err => console.log('API register error:', err));
+    
+    showToast(`✅ Xush kelibsiz, ${firstName}!`);
+    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    
+    // Elementlarni ko'rsatish/yashirish
+    const authSection = document.getElementById('authSection');
+    const mainSection = document.getElementById('mainSection');
+    const bottomNav = document.getElementById('bottomNav');
+    const userBadge = document.getElementById('userBadge');
+    
+    if (authSection) authSection.classList.add('hidden');
+    if (mainSection) mainSection.classList.remove('hidden');
+    if (bottomNav) bottomNav.classList.remove('hidden');
+    if (userBadge) {
+        userBadge.classList.remove('hidden');
+        userBadge.innerHTML = `👤 ${firstName}`;
+    }
+    
+    // Sevimlilarni yuklash
+    try {
+        const fav = localStorage.getItem('anicomplex_favorites');
+        if (fav) favorites = JSON.parse(fav);
+    } catch(e) {
+        favorites = [];
+    }
+    
+    // Media yuklash
+    if (typeof loadMedia === 'function') {
+        loadMedia();
+    }
+};
     
     console.log("Current user:", currentUser);
     
