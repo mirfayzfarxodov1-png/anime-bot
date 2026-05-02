@@ -328,47 +328,46 @@ async def _init_tables(self):
                                (datetime.now().isoformat(),))
         await self.conn.commit()
 
-    async def get_group_settings(self, group_id):
-    """Guruh sozlamalarini olish"""
-    try:
-        async with self.conn.execute(
-            "SELECT bot_enabled, only_commands FROM group_settings WHERE group_id=?",
-            (group_id,)
-        ) as c:
-            row = await c.fetchone()
-            if not row:
-                # Default sozlamalar
+   async def get_group_settings(self, group_id):
+        """Guruh sozlamalarini olish"""
+        try:
+            async with self.conn.execute(
+                "SELECT bot_enabled, only_commands FROM group_settings WHERE group_id=?",
+                (group_id,)
+            ) as c:
+                row = await c.fetchone()
+                if not row:
+                    # Default sozlamalar
+                    await self.conn.execute(
+                        "INSERT INTO group_settings (group_id, bot_enabled, only_commands) VALUES (?,?,?)",
+                        (group_id, 1, 1)
+                    )
+                    await self.conn.commit()
+                    return {"bot_enabled": 1, "only_commands": 1}
+                return {"bot_enabled": row["bot_enabled"], "only_commands": row["only_commands"]}
+        except Exception as e:
+            print(f"❌ Error getting group settings: {e}")
+            return {"bot_enabled": 1, "only_commands": 1}
+
+    async def update_group_settings(self, group_id, bot_enabled=None, only_commands=None):
+        """Guruh sozlamalarini yangilash"""
+        try:
+            if bot_enabled is not None:
                 await self.conn.execute(
-                    "INSERT INTO group_settings (group_id, bot_enabled, only_commands) VALUES (?,?,?)",
-                    (group_id, 1, 1)
+                    "UPDATE group_settings SET bot_enabled=? WHERE group_id=?",
+                    (1 if bot_enabled else 0, group_id)
                 )
-                await self.conn.commit()
-                return {"bot_enabled": 1, "only_commands": 1}
-            return {"bot_enabled": row["bot_enabled"], "only_commands": row["only_commands"]}
-    except Exception as e:
-        print(f"❌ Error getting group settings: {e}")
-        return {"bot_enabled": 1, "only_commands": 1}
+            if only_commands is not None:
+                await self.conn.execute(
+                    "UPDATE group_settings SET only_commands=? WHERE group_id=?",
+                    (1 if only_commands else 0, group_id)
+                )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"❌ Error updating group settings: {e}")
+            return False
 
-
-async def update_group_settings(self, group_id, bot_enabled=None, only_commands=None):
-    """Guruh sozlamalarini yangilash"""
-    try:
-        if bot_enabled is not None:
-            await self.conn.execute(
-                "UPDATE group_settings SET bot_enabled=? WHERE group_id=?",
-                (1 if bot_enabled else 0, group_id)
-            )
-        if only_commands is not None:
-            await self.conn.execute(
-                "UPDATE group_settings SET only_commands=? WHERE group_id=?",
-                (1 if only_commands else 0, group_id)
-            )
-        await self.conn.commit()
-        return True
-    except Exception as e:
-        print(f"❌ Error updating group settings: {e}")
-        return False
-    
     async def add_vip_request(self, uid, phone, amount, proof=""):
         now = datetime.now().isoformat()
         await self.conn.execute("INSERT INTO vip_requests (user_id,phone_number,amount,payment_proof,status,created_at) VALUES(?,?,?,?,'pending',?)", 
