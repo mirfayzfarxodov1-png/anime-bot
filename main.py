@@ -5480,6 +5480,138 @@ def run_mini_app_server():
     print(f"🌐 Mini App server: http://{MINI_APP_HOST}:{MINI_APP_PORT}")
     server.serve_forever()
 
+# ================= MINI APP API ENDPOINTS =================
+from aiohttp import web
+import json
+
+class MiniAppAPI:
+    """Mini App uchun API endpointlar"""
+    
+    @staticmethod
+    async def get_media(request):
+        """Barcha medialarni qaytaradi"""
+        media_list = []
+        try:
+            async with db.conn.execute("""
+                SELECT id, name, code, total_parts, status, rating, rating_count, 
+                       image_url, views, is_vip, description, genre, created_at
+                FROM media WHERE is_vip=0 OR is_vip=1
+                ORDER BY id DESC
+            """) as c:
+                rows = await c.fetchall()
+                for row in rows:
+                    # Like va comment larni olish
+                    likes = await db.get_likes(row['id'])
+                    async with db.conn.execute(
+                        "SELECT username, text, created_at FROM comments WHERE media_id=? ORDER BY created_at DESC LIMIT 20", 
+                        (row['id'],)
+                    ) as cc:
+                        comments = await cc.fetchall()
+                    
+                    media_list.append({
+                        "id": row['id'],
+                        "name": row['name'],
+                        "code": row['code'],
+                        "total_parts": row['total_parts'],
+                        "status": row['status'] or "ongoing",
+                        "rating": float(row['rating'] or 0),
+                        "rating_count": row['rating_count'] or 0,
+                        "image_url": row['image_url'] or "",
+                        "views": row['views'] or 0,
+                        "likes": likes,
+                        "comments": [{"username": c['username'] or "Anonim", "text": c['text'], "created_at": c['created_at']} for c in comments],
+                        "is_vip": row['is_vip'] or 0,
+                        "description": row['description'] or "",
+                        "genre": row['genre'] or "",
+                        "created_at": row['created_at']
+                    })
+        except Exception as e:
+            logger.error(f"API get_media error: {e}")
+        
+        return web.json_response({"status": "ok", "data": media_list})
+    
+    @staticmethod
+    async def register_user(request):
+        """Foydalanuvchini ro'yxatdan o'tkazish"""
+        try:
+            data = await request.json()
+            user_id = data.get('id')
+            first_name = data.get('first_name', '')
+            username = data.get('username', '')
+            
+            if user_id:
+                await db.add_user(user_id, username, first_name, "")
+                logger.info(f"New user registered from MiniApp: {user_id}")
+                return web.json_response({"status": "ok", "message": "User registered"})
+        except Exception as e:
+            logger.error(f"API register error: {e}")
+        
+        return web.json_response({"status": "error"}, status=400)
+    
+    @staticmethod
+    async def add_like(request):
+        """Layk qo'shish"""
+        try:
+            data = await request.json()
+            media_id = data.get('media_id')
+            user_id = data.get('user_id')
+            liked = data.get('liked', True)
+            
+            if user_id and media_id:
+                if liked:
+                    await db.add_like(user_id, media_id)
+                else:
+                    await db.remove_like(user_id, media_id)
+                return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"API like error: {e}")
+        
+        return web.json_response({"status": "error"}, status=400)
+    
+    @staticmethod
+    async def add_comment(request):
+        """Izoh qo'shish"""
+        try:
+            data = await request.json()
+            media_id = data.get('media_id')
+            user_id = data.get('user_id')
+            text = data.get('text', '')
+            username = data.get('username', 'Anonim')
+            
+            if media_id and text:
+                await db.add_comment(user_id or 0, media_id, username, text)
+                logger.info(f"New comment on media {media_id}")
+                return web.json_response({"status": "ok"})
+        except Exception as e:
+            logger.error(f"API comment error: {e}")
+        
+        return web.json_response({"status": "error"}, status=400)
+    
+    @staticmethod
+    async def get_media_count(request):
+        """Media sonini qaytaradi"""
+        try:
+            count = await db.get_media_count()
+            return web.json_response({"count": count})
+        except:
+            return web.json_response({"count": 0})
+
+# API server yaratish
+api_app = web.Application()
+api_app.router.add_get('/api/media', MiniAppAPI.get_media)
+api_app.router.add_get('/api/media/count', MiniAppAPI.get_media_count)
+api_app.router.add_post('/api/register', MiniAppAPI.register_user)
+api_app.router.add_post('/api/like', MiniAppAPI.add_like)
+api_app.router.add_post('/api/comment', MiniAppAPI.add_comment)
+
+async def start_api_server():
+    """API serverni ishga tushirish"""
+    runner = web.AppRunner(api_app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    await site.start()
+    logger.info("✅ MiniApp API server running on port 8080")
+
 # ================= MAIN =================
 async def main():
     print("=" * 70)
@@ -5495,6 +5627,10 @@ async def main():
     
     await db.check_all_vip_expiry()
     print("✅ VIP muddatlari tekshirildi")
+    
+    # ✅ 2-BOSQICH: API SERVERNI ISHGA TUSHIRISH (YANGI QO'SHILDI!)
+    await start_api_server()
+    print("✅ MiniApp API server ishga tushdi (port 8080)")
     
     try:
         await bot.delete_webhook(drop_pending_updates=True)
