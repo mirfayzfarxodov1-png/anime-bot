@@ -741,14 +741,15 @@ def format_media_info(media) -> str:
     is_vip_val = media["is_vip"] if "is_vip" in media.keys() and media["is_vip"] else 0
     description_val = media["description"] if "description" in media.keys() and media["description"] else ""
     
-    text = "✽───〔•°⛩°•〕───✽\n"
+        text = "✽───〔•°⛩°•〕───✽\n"
     text += f"🏷 <b>Anime nomi</b> : {media['name']}\n"
     text += ". . . . . . . . . . . . . . . . . . . . . . . ──\n"
     text += f"🖋 <b>Janri</b> : {genre_hashtags}\n"
     text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
     text += f"🎞 <b>Qismlar soni</b> : {media['total_parts']}\n"
     text += ". . . . . . . . . . . . . . . . . . . . . . . ──\n"
-    text += f"📊 <b>Holati</b> : {status_emoji.get(media_status, '❓')} {status_text.get(media_status, 'Noma\'lum')}\n"
+    nomalum = "Noma'lum"
+    text += f"📊 <b>Holati</b> : {status_emoji.get(media_status, '❓')} {status_text.get(media_status, nomalum)}\n"
     text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
     text += f"🎙 <b>Ovoz berdi</b> : {voice_val}\n"
     text += ". . . ── . . . . . . . . . . . . . . . . . . . .\n"
