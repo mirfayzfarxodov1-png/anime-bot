@@ -3497,23 +3497,37 @@ async def main():
     await db.check_all_vip_expiry()
     print("✅ VIP muddatlari tekshirildi")
     
-    try: await bot.delete_webhook(drop_pending_updates=True)
-    except: pass
+    try: 
+        await bot.delete_webhook(drop_pending_updates=True)
+    except: 
+        pass
     
-    # Mini App server    if MINI_APP_URL and MINI_APP_URL.startswith("https://"):
+    # ✅ TO'G'RILANGAN QISM - indentatsiya to'g'ri
+    if MINI_APP_URL and MINI_APP_URL.startswith("https://"):
         mini_app_thread = threading.Thread(target=run_mini_app_server, daemon=True)
         mini_app_thread.start()
-        try: await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🎮 Mini App", web_app=WebAppInfo(url=MINI_APP_URL)))
-        except: pass
+        try: 
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="🎮 Mini App", 
+                    web_app=WebAppInfo(url=MINI_APP_URL)
+                )
+            )
+        except: 
+            pass
     
     asyncio.create_task(vip_expiry_checker())
     
     print("✅ Bot to'liq ishga tushdi!")
     print("=" * 70)
     
-    try: await dp.start_polling(bot)
-    except KeyboardInterrupt: print("\n⚠️ To'xtatildi")
-    finally: await db.close(); await bot.session.close()
+    try: 
+        await dp.start_polling(bot)
+    except KeyboardInterrupt: 
+        print("\n⚠️ To'xtatildi")
+    finally: 
+        await db.close()
+        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
