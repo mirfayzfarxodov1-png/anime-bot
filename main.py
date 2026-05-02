@@ -180,8 +180,7 @@ class Database:
     # Mini app users table
     await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
     
-    # ================= YANGI QO'SHILGAN GROUP SETTINGS TABLE =================
-    # Group settings table (guruh sozlamalari uchun)
+    # ================= GROUP SETTINGS TABLE =================
     await self.conn.execute('''
     CREATE TABLE IF NOT EXISTS group_settings (
         group_id INTEGER PRIMARY KEY,
@@ -194,12 +193,18 @@ class Database:
     await self.conn.commit()
     
     # Create indexes
-    try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
-    except: pass
-    try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
-    except: pass
-    try: await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
-    except: pass
+    try:
+        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_code ON media(code)')
+    except:
+        pass
+    try:
+        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_media_name ON media(name)')
+    except:
+        pass
+    try:
+        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_parts_media ON parts(media_id)')
+    except:
+        pass
     
     await self.conn.commit()
     
