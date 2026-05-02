@@ -93,7 +93,7 @@ class Database:
         await self._migrate_tables()
         logger.info("✅ Database connected")
     
-    async def _init_tables(self):
+async def _init_tables(self):
     # Media table
     await self.conn.execute('''
     CREATE TABLE IF NOT EXISTS media (
@@ -180,7 +180,7 @@ class Database:
     # Mini app users table
     await self.conn.execute('''CREATE TABLE IF NOT EXISTS mini_app_users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, username TEXT, registered_at TEXT)''')
     
-    # ================= GROUP SETTINGS TABLE =================
+    # Group settings table
     await self.conn.execute('''
     CREATE TABLE IF NOT EXISTS group_settings (
         group_id INTEGER PRIMARY KEY,
