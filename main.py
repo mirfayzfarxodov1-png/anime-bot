@@ -3291,9 +3291,12 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AniComplex | Anime World</title>
+    <title>AniComplex | Anime World Premium</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* ============================================ */
+        /* 1. RESET VA ASOSIY STILLAR (1-100 qator)    */
+        /* ============================================ */
         * {
             margin: 0;
             padding: 0;
@@ -3301,54 +3304,73 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             -webkit-tap-highlight-color: transparent;
         }
 
+        :root {
+            --primary: #e74c3c;
+            --primary-dark: #c0392b;
+            --secondary: #f39c12;
+            --dark: #0a0a0f;
+            --dark-card: rgba(20,20,35,0.85);
+            --glass-border: rgba(231,76,60,0.3);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255,255,255,0.7);
+            --text-muted: rgba(255,255,255,0.5);
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --transition-fast: 0.2s ease;
+            --transition-normal: 0.3s ease;
+            --transition-slow: 0.5s ease;
+            --border-radius-sm: 12px;
+            --border-radius-md: 18px;
+            --border-radius-lg: 25px;
+            --border-radius-xl: 35px;
+            --border-radius-xxl: 60px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 15px rgba(0,0,0,0.2);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.3);
+            --shadow-glow: 0 0 20px rgba(231,76,60,0.3);
+            --shadow-glow-strong: 0 0 40px rgba(231,76,60,0.6);
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Poppins', sans-serif;
-            background: #0a0a0f;
-            color: #fff;
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--dark);
+            color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* ========== BACKGROUND WITH USER IMAGE ========== */
-        .bg-layer {
+        /* ============================================ */
+        /* 2. FON VE ZARARCHALAR (101-250 qator)       */
+        /* ============================================ */
+        .bg-gradient {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: 0;
+            background: radial-gradient(circle at 20% 30%, #1a1a2e, #0a0a0f);
         }
 
-        .bg-image {
+        .bg-gradient::before {
+            content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: url('photo_2026-04-06_22-19-56.jpg');
-            background-size: cover;
-            background-position: center;
-            filter: brightness(0.3) blur(2px);
-            transform: scale(1.05);
-            animation: slowZoom 20s infinite alternate ease-in-out;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cGF0aCBmaWxsPSIjZTc0YzNjIiBmaWxsLW9wYWNpdHk9IjAuMDUiIGQ9Ik0wIDBoNDB2NDBIMHoiLz48L3N2Zz4=');
+            background-repeat: repeat;
+            opacity: 0.3;
+            pointer-events: none;
         }
 
-        @keyframes slowZoom {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.1); }
-        }
-
-        .bg-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 30%, rgba(0,0,0,0.6), rgba(0,0,0,0.85));
-        }
-
-        /* ========== ANIMATED PARTICLES ========== */
         .particles {
             position: fixed;
             top: 0;
@@ -3363,7 +3385,6 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .particle {
             position: absolute;
             border-radius: 50%;
-            background: rgba(255,255,255,0.4);
             animation: floatParticle linear infinite;
         }
 
@@ -3372,91 +3393,330 @@ MINI_APP_HTML = '''<!DOCTYPE html>
                 transform: translateY(100vh) scale(0);
                 opacity: 0;
             }
-            20% { opacity: 0.6; }
-            80% { opacity: 0.6; }
+            10% {
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.8;
+            }
             100% {
                 transform: translateY(-10vh) scale(1);
                 opacity: 0;
             }
         }
 
-        /* ========== MAIN CONTAINER ========== */
+        /* ============================================ */
+        /* 3. GLASS MORPHISM KOMPONENTLARI (251-400)    */
+        /* ============================================ */
+        .glass-card {
+            background: var(--dark-card);
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-md);
+            transition: all var(--transition-normal);
+        }
+
+        .glass-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-2px);
+        }
+
+        .glass-card-dark {
+            background: rgba(10,10,20,0.8);
+            backdrop-filter: blur(15px);
+            border-radius: var(--border-radius-md);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* ============================================ */
+        /* 4. ANIMATSIYALAR (401-550)                  */
+        /* ============================================ */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: var(--shadow-glow);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: var(--shadow-glow-strong);
+            }
+        }
+
+        @keyframes pulse-fast {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin-slow {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes bounce-soft {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-4px);
+            }
+        }
+
+        @keyframes heartBeat {
+            0%, 100% {
+                transform: scale(1);
+            }
+            25% {
+                transform: scale(1.3);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            75% {
+                transform: scale(1.2);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: var(--shadow-glow);
+            }
+            50% {
+                box-shadow: var(--shadow-glow-strong);
+            }
+        }
+
+        @keyframes rotate360 {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0);
+                opacity: 0.6;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes float-slow {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes zoomOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        .animate-fade-in { animation: fadeIn 0.5s ease forwards; }
+        .animate-fade-in-up { animation: fadeInUp 0.6s ease forwards; }
+        .animate-fade-in-down { animation: fadeInDown 0.6s ease forwards; }
+        .animate-fade-in-left { animation: fadeInLeft 0.5s ease forwards; }
+        .animate-fade-in-right { animation: fadeInRight 0.5s ease forwards; }
+        .animate-slide-up { animation: slideUp 0.6s ease forwards; }
+        .animate-slide-down { animation: slideDown 0.6s ease forwards; }
+        .animate-scale-in { animation: scaleIn 0.4s ease forwards; }
+        .animate-pulse { animation: pulse 2s infinite; }
+        .animate-pulse-fast { animation: pulse-fast 1s infinite; }
+        .animate-bounce { animation: bounce 2s infinite; }
+        .animate-bounce-soft { animation: bounce-soft 1.5s infinite; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        .animate-spin-slow { animation: spin-slow 3s linear infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-float-slow { animation: float-slow 4s ease-in-out infinite; }
+        .animate-glow { animation: glow 2s infinite; }
+        .animate-shimmer { animation: shimmer 2s infinite; }
+
+        /* ============================================ */
+        /* 5. CONTAINER VA LAYOUT (551-650)            */
+        /* ============================================ */
         .container {
             position: relative;
             z-index: 2;
             max-width: 550px;
             margin: 0 auto;
-            padding: 15px 15px 80px;
+            padding: 20px 16px 90px;
             min-height: 100vh;
         }
 
-        /* ========== ANIMATIONS ========== */
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 15px rgba(231,76,60,0.3), 0 0 5px rgba(231,76,60,0.2); }
-            50% { box-shadow: 0 0 30px rgba(231,76,60,0.6), 0 0 15px rgba(231,76,60,0.4); }
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideInLeft {
-            from { opacity: 0; transform: translateX(-30px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes slideInRight {
-            from { opacity: 0; transform: translateX(30px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-        }
-        @keyframes heartBeat {
-            0%, 100% { transform: scale(1); }
-            25% { transform: scale(1.4); }
-            50% { transform: scale(1.1); }
-            75% { transform: scale(1.2); }
-        }
-        @keyframes rotate360 {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        @keyframes ripple {
-            0% { transform: scale(0); opacity: 0.6; }
-            100% { transform: scale(3); opacity: 0; }
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        /* ========== HEADER ========== */
+        /* ============================================ */
+        /* 6. HEADER STILLARI (651-750)                */
+        /* ============================================ */
         .header {
-            background: linear-gradient(135deg, rgba(20,20,35,0.85), rgba(10,10,20,0.9));
-            backdrop-filter: blur(15px);
-            border-radius: 35px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(231,76,60,0.4);
-            animation: glow 3s infinite, slideDown 0.8s ease;
+            text-align: center;
+            padding: 30px 20px;
+            margin-bottom: 25px;
             position: relative;
             overflow: hidden;
+            animation: fadeInUp 0.6s ease;
         }
 
         .header::before {
@@ -3468,157 +3728,251 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             height: 200%;
             background: linear-gradient(45deg, transparent, rgba(231,76,60,0.08), transparent);
             animation: rotate360 12s linear infinite;
+            pointer-events: none;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), var(--primary), transparent);
+            border-radius: 2px;
         }
 
         .header h1 {
-            font-size: 34px;
+            font-size: 44px;
             font-weight: 800;
-            background: linear-gradient(135deg, #e74c3c, #f39c12, #e74c3c);
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--primary));
             background-size: 200% auto;
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: shimmer 3s linear infinite, pulse 2s infinite;
+            animation: shimmer 3s linear infinite;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 8px;
             position: relative;
             z-index: 1;
         }
 
-        .header p {
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            margin-top: 6px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .user-badge {
+        .header-badge {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            padding: 6px 14px;
-            border-radius: 30px;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--success), #2ecc71);
+            padding: 6px 16px;
+            border-radius: var(--border-radius-xxl);
             font-size: 12px;
             font-weight: 600;
             margin-top: 12px;
-            animation: bounce 2s infinite, slideUp 0.6s ease;
+            animation: bounce 2s infinite;
         }
 
-        /* ========== AUTH FORM ========== */
+        /* ============================================ */
+        /* 7. AUTH FORM STILLARI (751-850)             */
+        /* ============================================ */
         .auth-card {
-            background: linear-gradient(135deg, rgba(25,25,40,0.9), rgba(15,15,25,0.95));
-            backdrop-filter: blur(15px);
-            border-radius: 25px;
-            padding: 30px 25px;
-            margin: 20px 0;
-            border: 1px solid rgba(231,76,60,0.3);
-            animation: slideUp 0.6s ease, glow 2s infinite;
+            padding: 40px 28px;
             text-align: center;
+            animation: fadeInUp 0.7s ease;
         }
 
         .auth-card h2 {
+            font-size: 28px;
             margin-bottom: 25px;
-            font-size: 24px;
-            background: linear-gradient(135deg, #e74c3c, #f39c12);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
+        .auth-card .auth-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            animation: bounce 2s infinite;
+        }
+
         .auth-input {
             width: 100%;
-            padding: 14px 18px;
-            margin: 10px 0;
-            background: rgba(0,0,0,0.4);
-            border: 1.5px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            color: white;
+            padding: 16px 20px;
+            margin: 12px 0;
+            background: rgba(255,255,255,0.08);
+            border: 1.5px solid rgba(255,255,255,0.12);
+            border-radius: var(--border-radius-xxl);
+            color: var(--text-primary);
             font-size: 15px;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
             outline: none;
         }
 
         .auth-input:focus {
-            border-color: #e74c3c;
-            box-shadow: 0 0 15px rgba(231,76,60,0.3);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(231,76,60,0.3);
             transform: scale(1.02);
         }
 
-        /* ========== SEARCH BAR ========== */
-        .search-container {
-            animation: slideDown 0.7s ease;
+        .auth-input::placeholder {
+            color: var(--text-muted);
         }
 
-        .search-bar {
-            display: flex;
-            gap: 10px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 60px;
-            padding: 6px;
-            border: 1px solid rgba(231,76,60,0.3);
-            transition: all 0.3s;
-        }
-
-        .search-bar:focus-within {
-            border-color: #e74c3c;
-            box-shadow: 0 0 20px rgba(231,76,60,0.4);
-            transform: scale(1.02);
-        }
-
-        .search-bar input {
-            flex: 1;
-            background: transparent;
+        /* ============================================ */
+        /* 8. BUTTONLAR (851-950)                      */
+        /* ============================================ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
             border: none;
-            padding: 12px 20px;
-            color: white;
-            font-size: 15px;
-            outline: none;
-        }
-
-        .search-bar input::placeholder {
-            color: rgba(255,255,255,0.5);
-        }
-
-        /* ========== BUTTONS ========== */
-        .btn-primary {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            border: none;
-            border-radius: 60px;
-            padding: 12px 24px;
-            color: white;
-            font-weight: 600;
+            border-radius: var(--border-radius-xxl);
             font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
+            transition: all var(--transition-normal);
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
         }
 
         .btn-primary:active {
             transform: scale(0.96);
         }
 
-        .search-btn {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.96);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:active {
+            transform: scale(0.96);
+        }
+
+        .btn-glow {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border: none;
-            border-radius: 60px;
-            padding: 12px 25px;
+            border-radius: var(--border-radius-xxl);
+            padding: 14px 28px;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            animation: pulse 2s infinite;
+            transition: all var(--transition-normal);
+        }
+
+        .btn-glow:active {
+            transform: scale(0.96);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .btn-lg {
+            padding: 16px 32px;
+            font-size: 18px;
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: var(--border-radius-xxl);
+            padding: 12px 28px;
             color: white;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
         }
 
         .search-btn:active {
             transform: scale(0.95);
         }
 
-        /* ========== TABS ========== */
+        /* ============================================ */
+        /* 9. SEARCH BAR STILLARI (951-1050)           */
+        /* ============================================ */
+        .search-container {
+            margin-bottom: 20px;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            background: rgba(255,255,255,0.08);
+            border-radius: var(--border-radius-xxl);
+            padding: 6px;
+            border: 1px solid var(--glass-border);
+            transition: all var(--transition-normal);
+        }
+
+        .search-bar:focus-within {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+            transform: scale(1.01);
+        }
+
+        .search-bar input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 14px 20px;
+            color: var(--text-primary);
+            font-size: 15px;
+            outline: none;
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* ============================================ */
+        /* 10. TABS STILLARI (1051-1150)               */
+        /* ============================================ */
         .tabs {
             display: flex;
             gap: 10px;
-            margin: 25px 0;
+            margin: 20px 0 25px;
             overflow-x: auto;
-            padding-bottom: 8px;
-            animation: slideUp 0.8s ease;
+            padding-bottom: 5px;
+            animation: fadeInUp 0.7s ease;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
 
         .tabs::-webkit-scrollbar {
@@ -3629,45 +3983,70 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             padding: 10px 22px;
             background: rgba(255,255,255,0.08);
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 60px;
-            color: rgba(255,255,255,0.7);
+            border-radius: var(--border-radius-xxl);
+            color: var(--text-secondary);
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
+        }
+
+        .tab:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
         }
 
         .tab.active {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border-color: transparent;
             animation: pulse 2s infinite;
         }
 
-        /* ========== MEDIA GRID ========== */
+        /* ============================================ */
+        /* 11. MEDIA GRID VA KARTALAR (1151-1300)      */
+        /* ============================================ */
         .media-grid {
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            margin: 15px 0;
+            gap: 16px;
+            margin: 20px 0 30px;
         }
 
         .media-card {
             background: linear-gradient(135deg, rgba(25,25,40,0.85), rgba(15,15,25,0.9));
             backdrop-filter: blur(12px);
-            border-radius: 22px;
+            border-radius: var(--border-radius-md);
             overflow: hidden;
             border: 1px solid rgba(231,76,60,0.2);
             cursor: pointer;
-            transition: all 0.3s;
-            animation: fadeInUp 0.5s ease;
+            transition: all var(--transition-normal);
             display: flex;
+            animation: fadeInUp 0.5s ease;
+            position: relative;
+        }
+
+        .media-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, transparent, rgba(231,76,60,0.05), transparent);
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+            pointer-events: none;
+        }
+
+        .media-card:hover::before {
+            opacity: 1;
         }
 
         .media-card:hover {
             transform: translateX(8px) scale(1.01);
-            border-color: rgba(231,76,60,0.6);
+            border-color: var(--primary);
             box-shadow: 0 8px 25px rgba(231,76,60,0.25);
         }
 
@@ -3680,7 +4059,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             height: 150px;
             object-fit: cover;
             flex-shrink: 0;
-            transition: transform 0.4s;
+            transition: transform var(--transition-normal);
         }
 
         .media-card:hover img {
@@ -3688,43 +4067,93 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .media-info {
-            padding: 15px;
+            padding: 14px;
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .media-title {
-            font-size: 17px;
+            font-size: 16px;
             font-weight: 700;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .media-meta {
             font-size: 12px;
-            color: rgba(255,255,255,0.6);
-            margin-bottom: 5px;
+            color: var(--text-secondary);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .media-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            font-size: 10px;
         }
 
         .rating-stars {
-            color: #f39c12;
-            font-size: 12px;
-            margin-top: 6px;
+            color: var(--secondary);
+            font-size: 11px;
+            margin-top: 4px;
         }
 
-        /* ========== PLAYER ========== */
+        .media-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ============================================ */
+        /* 12. PLAYER SECTION (1301-1450)              */
+        /* ============================================ */
         .player-section {
-            background: linear-gradient(135deg, rgba(20,20,35,0.9), rgba(10,10,20,0.95));
-            backdrop-filter: blur(15px);
-            border-radius: 25px;
+            background: linear-gradient(135deg, rgba(20,20,35,0.95), rgba(10,10,20,0.98));
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius-lg);
             padding: 18px;
-            animation: slideUp 0.5s ease;
+            animation: scaleIn 0.5s ease;
         }
 
         .player-section video {
             width: 100%;
-            border-radius: 18px;
+            border-radius: var(--border-radius-md);
             background: #000;
+            box-shadow: var(--shadow-md);
         }
 
+        .player-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 12px 0 8px;
+            text-align: center;
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: var(--border-radius-sm);
+            font-size: 12px;
+        }
+
+        /* ============================================ */
+        /* 13. QISM BUTTONLARI (1451-1550)             */
+        /* ============================================ */
         .part-buttons {
             display: flex;
             flex-wrap: wrap;
@@ -3735,16 +4164,22 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .part-btn {
             background: rgba(255,255,255,0.08);
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 12px;
-            padding: 9px 18px;
-            color: white;
+            border-radius: var(--border-radius-sm);
+            padding: 10px 18px;
+            color: var(--text-primary);
             font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all var(--transition-fast);
+        }
+
+        .part-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
         }
 
         .part-btn.active {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border-color: transparent;
         }
 
@@ -3752,7 +4187,9 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             transform: scale(0.94);
         }
 
-        /* ========== ACTION BUTTONS ========== */
+        /* ============================================ */
+        /* 14. ACTION BUTTONLARI (1551-1650)           */
+        /* ============================================ */
         .action-buttons {
             display: flex;
             gap: 15px;
@@ -3765,13 +4202,18 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             gap: 8px;
             background: rgba(255,255,255,0.08);
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 60px;
+            border-radius: var(--border-radius-xxl);
             padding: 10px 22px;
-            color: white;
+            color: var(--text-primary);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
             font-size: 14px;
             font-weight: 500;
+        }
+
+        .action-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
         }
 
         .action-btn:active {
@@ -3779,42 +4221,90 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .action-btn.liked {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             animation: heartBeat 0.5s ease;
         }
 
-        /* ========== COMMENTS ========== */
+        /* ============================================ */
+        /* 15. COMMENTS SEKTSIYASI (1651-1780)         */
+        /* ============================================ */
         .comments-section {
-            background: rgba(0,0,0,0.4);
-            border-radius: 22px;
-            padding: 18px;
             margin: 18px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: var(--border-radius-md);
+            padding: 15px;
             animation: slideUp 0.3s ease;
+        }
+
+        .comments-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .comments-count {
+            font-size: 13px;
+            color: var(--text-muted);
         }
 
         .comment {
             background: rgba(0,0,0,0.35);
-            border-radius: 18px;
+            border-radius: var(--border-radius-md);
             padding: 12px;
             margin: 10px 0;
-            animation: slideInLeft 0.3s ease;
+            animation: fadeInLeft 0.3s ease;
+            transition: all var(--transition-fast);
+        }
+
+        .comment:hover {
+            background: rgba(0,0,0,0.5);
+            transform: translateX(3px);
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .comment-avatar {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
 
         .comment-user {
             font-weight: 700;
-            color: #e74c3c;
+            color: var(--primary);
             font-size: 13px;
         }
 
+        .comment-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
         .comment-text {
-            font-size: 14px;
-            margin-top: 5px;
-            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            margin-top: 6px;
+            padding-left: 36px;
+            color: var(--text-secondary);
+            line-height: 1.4;
         }
 
         .comment-input {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             margin-top: 18px;
         }
 
@@ -3822,59 +4312,111 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             flex: 1;
             background: rgba(0,0,0,0.4);
             border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 60px;
+            border-radius: var(--border-radius-xxl);
             padding: 12px 18px;
-            color: white;
+            color: var(--text-primary);
             font-size: 14px;
             outline: none;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
         }
 
         .comment-input input:focus {
-            border-color: #e74c3c;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(231,76,60,0.2);
         }
 
         .comment-input button {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border: none;
-            border-radius: 60px;
+            border-radius: var(--border-radius-xxl);
             padding: 12px 22px;
             color: white;
             font-weight: 600;
             cursor: pointer;
+            transition: all var(--transition-normal);
         }
 
-        /* ========== LOADING ========== */
+        .comment-input button:active {
+            transform: scale(0.95);
+        }
+
+        /* ============================================ */
+        /* 16. LOADING SKELETON (1781-1880)            */
+        /* ============================================ */
         .skeleton {
             background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
-            border-radius: 18px;
+            border-radius: var(--border-radius-md);
         }
 
-        /* ========== EMPTY STATE ========== */
+        .skeleton-card {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: var(--border-radius-md);
+            margin-bottom: 12px;
+        }
+
+        .skeleton-img {
+            width: 100px;
+            height: 140px;
+            border-radius: var(--border-radius-sm);
+        }
+
+        .skeleton-text {
+            height: 14px;
+            margin: 8px 0;
+            border-radius: 7px;
+        }
+
+        .skeleton-title {
+            height: 18px;
+            width: 70%;
+            margin-bottom: 12px;
+        }
+
+        /* ============================================ */
+        /* 17. EMPTY STATE (1881-1950)                 */
+        /* ============================================ */
         .empty-state {
             text-align: center;
             padding: 60px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: var(--border-radius-lg);
             animation: fadeInUp 0.6s ease;
         }
 
         .empty-state .icon {
-            font-size: 70px;
-            margin-bottom: 18px;
+            font-size: 80px;
+            margin-bottom: 20px;
             animation: bounce 2s infinite;
         }
 
-        /* ========== BOTTOM NAV ========== */
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* ============================================ */
+        /* 18. BOTTOM NAVIGATION (1951-2050)           */
+        /* ============================================ */
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             background: linear-gradient(135deg, rgba(15,15,25,0.98), rgba(10,10,20,0.98));
-            backdrop-filter: blur(15px);
+            backdrop-filter: blur(20px);
             border-top: 1px solid rgba(231,76,60,0.4);
-            padding: 12px 20px;
+            padding: 10px 20px;
             display: flex;
             justify-content: space-around;
             z-index: 100;
@@ -3885,19 +4427,24 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
             background: none;
             border: none;
-            color: rgba(255,255,255,0.5);
+            color: var(--text-muted);
             font-size: 11px;
             cursor: pointer;
             padding: 8px 18px;
-            border-radius: 50px;
-            transition: all 0.3s;
+            border-radius: var(--border-radius-xxl);
+            transition: all var(--transition-normal);
+        }
+
+        .nav-item:hover {
+            color: var(--primary);
+            transform: translateY(-2px);
         }
 
         .nav-item.active {
-            color: #e74c3c;
+            color: var(--primary);
             background: rgba(231,76,60,0.15);
         }
 
@@ -3907,239 +4454,473 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 
         .nav-icon {
             font-size: 24px;
+            margin-bottom: 2px;
         }
 
-        /* ========== TOAST ========== */
+        /* ============================================ */
+        /* 19. TOAST NOTIFICATION (2051-2120)          */
+        /* ============================================ */
         .toast {
             position: fixed;
-            bottom: 90px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(10px);
             color: white;
             padding: 12px 28px;
-            border-radius: 60px;
+            border-radius: var(--border-radius-xxl);
             font-size: 14px;
             z-index: 200;
             animation: slideUp 0.3s ease;
-            border-left: 4px solid #e74c3c;
+            border-left: 4px solid var(--primary);
             white-space: nowrap;
+            max-width: 90%;
+            white-space: normal;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
         }
 
-        /* ========== UTILITIES ========== */
-        .hidden {
-            display: none !important;
+        .toast-success {
+            border-left-color: var(--success);
         }
+
+        .toast-error {
+            border-left-color: var(--danger);
+        }
+
+        .toast-warning {
+            border-left-color: var(--warning);
+        }
+
+        /* ============================================ */
+        /* 20. MODAL DIALOG (2121-2200)                */
+        /* ============================================ */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, rgba(25,25,40,0.98), rgba(15,15,25,0.98));
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius-lg);
+            padding: 25px;
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+            animation: scaleIn 0.3s ease;
+            border: 1px solid rgba(231,76,60,0.3);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+        }
+
+        /* ============================================ */
+        /* 21. UTILITY CLASSES (2201-2300)             */
+        /* ============================================ */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .text-primary { color: var(--primary); }
+        .text-secondary { color: var(--secondary); }
+        .text-success { color: var(--success); }
+        .text-muted { color: var(--text-muted); }
+        .mt-0 { margin-top: 0; }
+        .mt-1 { margin-top: 4px; }
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 12px; }
+        .mt-4 { margin-top: 16px; }
+        .mt-5 { margin-top: 20px; }
+        .mb-0 { margin-bottom: 0; }
+        .mb-1 { margin-bottom: 4px; }
+        .mb-2 { margin-bottom: 8px; }
+        .mb-3 { margin-bottom: 12px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mb-5 { margin-bottom: 20px; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .w-100 { width: 100%; }
+        .cursor-pointer { cursor: pointer; }
+        .rounded-full { border-radius: var(--border-radius-xxl); }
+        .rounded-lg { border-radius: var(--border-radius-lg); }
+        .rounded-md { border-radius: var(--border-radius-md); }
+        .shadow-glow { box-shadow: var(--shadow-glow); }
     </style>
 </head>
 <body>
 
-<!-- BACKGROUND WITH USER IMAGE -->
-<div class="bg-layer">
-    <div class="bg-image"></div>
-    <div class="bg-overlay"></div>
-</div>
-
-<!-- ANIMATED PARTICLES -->
+<div class="bg-gradient"></div>
 <div class="particles" id="particles"></div>
 
 <div class="container">
     <!-- HEADER -->
-    <div class="header">
+    <div class="header glass-card">
         <h1>🎬 AniComplex</h1>
-        <p>Anime olamiga xush kelibsiz!</p>
-        <div class="user-badge hidden" id="userBadge">👤 Foydalanuvchi</div>
+        <p class="subtitle">Anime olamiga xush kelibsiz!</p>
+        <div class="header-badge hidden" id="userBadge">👤 Foydalanuvchi</div>
     </div>
 
     <!-- AUTH SECTION -->
-    <div id="authSection">
-        <div class="auth-card">
-            <h2>📝 Ro'yxatdan o'tish</h2>
-            <input type="text" id="firstNameInput" class="auth-input" placeholder="👤 Ismingiz" autocomplete="off">
-            <input type="text" id="usernameInput" class="auth-input" placeholder="📱 Telegram username" autocomplete="off">
-            <button class="btn-primary" onclick="register()" style="margin-top: 15px;">✅ Ro'yxatdan o'tish</button>
-        </div>
+    <div id="authSection" class="auth-card glass-card">
+        <div class="auth-icon">🎭</div>
+        <h2>📝 Ro'yxatdan o'tish</h2>
+        <input type="text" id="firstNameInput" class="auth-input" placeholder="👤 Ismingiz" autocomplete="off">
+        <input type="text" id="usernameInput" class="auth-input" placeholder="📱 Telegram username" autocomplete="off">
+        <button class="btn-glow" onclick="register()">✅ Kirish</button>
+        <p class="text-muted mt-3" style="font-size: 12px;">Telegram orqali avtomatik tizimga kirasiz</p>
     </div>
 
     <!-- MAIN SECTION -->
     <div id="mainSection" class="hidden">
         <div class="search-container">
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="🔍 Anime qidirish...">
+                <input type="text" id="searchInput" placeholder="🔍 Anime qidirish (nomi, kod, janr...)">
                 <button class="search-btn" onclick="searchAnime()">🔍</button>
             </div>
         </div>
 
         <div class="tabs" id="tabs">
             <button class="tab active" onclick="loadTab('all')">📋 Barchasi</button>
-            <button class="tab" onclick="loadTab('ongoing')">🟢 Davom etayotgan</button>
+            <button class="tab" onclick="loadTab('ongoing')">🟢 Davom etmoqda</button>
             <button class="tab" onclick="loadTab('completed')">✅ Tugallangan</button>
             <button class="tab" onclick="loadTab('popular')">🏆 Mashhur</button>
+            <button class="tab" onclick="loadTab('vip')">👑 VIP</button>
+            <button class="tab" onclick="loadTab('recent')">🆕 Yangi</button>
         </div>
 
-        <div id="mediaGrid" class="media-grid"></div>
+        <div id="mediaGrid" class="media-grid">
+            <!-- skeleton loader -->
+            <div class="skeleton-card">
+                <div class="skeleton-img skeleton"></div>
+                <div style="flex:1">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-text" style="width:60%"></div>
+                    <div class="skeleton skeleton-text" style="width:40%"></div>
+                    <div class="skeleton skeleton-text" style="width:50%"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton-img skeleton"></div>
+                <div style="flex:1">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-text" style="width:60%"></div>
+                    <div class="skeleton skeleton-text" style="width:40%"></div>
+                    <div class="skeleton skeleton-text" style="width:50%"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton-img skeleton"></div>
+                <div style="flex:1">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-text" style="width:60%"></div>
+                    <div class="skeleton skeleton-text" style="width:40%"></div>
+                    <div class="skeleton skeleton-text" style="width:50%"></div>
+                </div>
+            </div>
+        </div>
 
         <div id="playerSection" class="player-section hidden">
-            <video id="videoPlayer" controls></video>
-            <h3 id="playerTitle" style="margin: 12px 0 8px; font-size: 18px;"></h3>
-            
+            <video id="videoPlayer" controls preload="metadata"></video>
+            <h3 id="playerTitle" class="player-title"></h3>
+            <div class="player-info">
+                <span>⭐ <span id="playerRating">0</span>/10</span>
+                <span>👁 <span id="playerViews">0</span></span>
+                <span>📀 <span id="playerParts">0</span> qism</span>
+            </div>
             <div class="action-buttons">
                 <button class="action-btn" id="likeBtn" onclick="toggleLike()">❤️ <span id="likeCount">0</span></button>
                 <button class="action-btn" onclick="toggleComments()">💬 <span id="commentCount">0</span></button>
+                <button class="action-btn" onclick="shareMedia()">📤 Ulashish</button>
             </div>
-            
             <div id="commentsSection" class="comments-section hidden">
+                <div class="comments-header">
+                    <span>💬 Izohlar</span>
+                    <span class="comments-count" id="commentsCount">0 ta izoh</span>
+                </div>
                 <div id="commentsList"></div>
                 <div class="comment-input">
                     <input type="text" id="commentInput" placeholder="Izoh yozing...">
-                    <button onclick="addComment()">➤</button>
+                    <button onclick="addComment()">➤ Yuborish</button>
                 </div>
             </div>
-            
             <div class="part-buttons" id="partButtons"></div>
-            <button class="btn-primary" onclick="closePlayer()" style="margin-top: 8px;">🔙 Orqaga</button>
+            <button class="btn-primary btn-block" onclick="closePlayer()" style="margin-top: 10px;">🔙 Orqaga</button>
         </div>
     </div>
 </div>
 
-<!-- BOTTOM NAVIGATION -->
 <div class="bottom-nav hidden" id="bottomNav">
     <button class="nav-item active" onclick="loadTab('all')"><span class="nav-icon">🏠</span> Bosh</button>
     <button class="nav-item" onclick="scrollToSearch()"><span class="nav-icon">🔍</span> Qidiruv</button>
     <button class="nav-item" onclick="loadTab('popular')"><span class="nav-icon">🔥</span> Mashhur</button>
     <button class="nav-item" onclick="loadTab('ongoing')"><span class="nav-icon">🆕</span> Yangi</button>
+    <button class="nav-item" onclick="showProfile()"><span class="nav-icon">👤</span> Profil</button>
 </div>
 
 <script>
-// ==================== TELEGRAM WEB APP INIT ====================
+// ============================================ //
+// 1. TELEGRAM WEBAPP INIT (2301-2350)         //
+// ============================================ //
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 tg.enableClosingConfirmation();
 
-// ==================== PARTICLES ====================
-function createParticles() {
+// ============================================ //
+// 2. PARTICLES GENERATION (2351-2400)         //
+// ============================================ //
+function generateParticles() {
     const container = document.getElementById('particles');
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
         const size = Math.random() * 5 + 2;
         const duration = Math.random() * 18 + 8;
         const delay = Math.random() * 12;
+        const colors = ['#e74c3c', '#f39c12', 'rgba(255,255,255,0.5)', '#3498db', '#2ecc71'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
         particle.style.cssText = `
             width: ${size}px;
             height: ${size}px;
             left: ${Math.random() * 100}%;
-            background: ${Math.random() > 0.7 ? '#e74c3c' : (Math.random() > 0.5 ? '#f39c12' : 'rgba(255,255,255,0.5)')};
+            background: ${randomColor};
             animation-duration: ${duration}s;
             animation-delay: ${delay}s;
         `;
         container.appendChild(particle);
     }
 }
-createParticles();
+generateParticles();
 
-// ==================== GLOBAL VARIABLES ====================
+// ============================================ //
+// 3. GLOBAL VARIABLES (2401-2450)             //
+// ============================================ //
 let currentUser = null;
 let currentMedia = null;
 let currentPart = 1;
 let isLiked = false;
 let mediaData = [];
+let allGenres = [];
+let watchHistory = [];
+let favorites = [];
+let notifications = [];
 
-// ==================== AUTH ====================
-function checkAuth() {
-    const user = localStorage.getItem('anicomplex_user');
+// ============================================ //
+// 4. LOCAL STORAGE FUNCTIONS (2451-2500)      //
+// ============================================ //
+function saveToLocalStorage(key, data) {
+    try {
+        localStorage.setItem(`anicomplex_${key}`, JSON.stringify(data));
+    } catch(e) {
+        console.error('LocalStorage error:', e);
+    }
+}
+
+function loadFromLocalStorage(key) {
+    try {
+        const data = localStorage.getItem(`anicomplex_${key}`);
+        return data ? JSON.parse(data) : null;
+    } catch(e) {
+        return null;
+    }
+}
+
+function saveUserData() {
+    if (currentUser) {
+        saveToLocalStorage('user', currentUser);
+    }
+}
+
+function loadUserData() {
+    const user = loadFromLocalStorage('user');
     if (user) {
-        currentUser = JSON.parse(user);
+        currentUser = user;
+    }
+}
+
+// ============================================ //
+// 5. AUTHENTICATION FUNCTIONS (2501-2600)     //
+// ============================================ //
+function checkAuth() {
+    loadUserData();
+    if (currentUser && currentUser.id) {
         document.getElementById('authSection').classList.add('hidden');
         document.getElementById('mainSection').classList.remove('hidden');
         document.getElementById('bottomNav').classList.remove('hidden');
         document.getElementById('userBadge').classList.remove('hidden');
         document.getElementById('userBadge').innerHTML = `👤 ${currentUser.first_name || 'User'}`;
         loadMedia();
+        loadUserPreferences();
     }
 }
 
 function register() {
-    const name = document.getElementById('firstNameInput').value.trim();
+    const firstName = document.getElementById('firstNameInput').value.trim();
     const username = document.getElementById('usernameInput').value.trim();
     
-    if (!name) {
-        showToast("❌ Ismingizni kiriting!", true);
+    if (!firstName) {
+        showToast("❌ Iltimos, ismingizni kiriting!", true);
         tg.HapticFeedback.notificationOccurred('error');
         return;
     }
     
+    const telegramUser = tg.initDataUnsafe?.user;
+    
     currentUser = {
-        id: tg.initDataUnsafe?.user?.id || Date.now(),
-        first_name: name,
-        username: username || name,
-        registered_at: new Date().toISOString()
+        id: telegramUser?.id || Date.now(),
+        first_name: firstName,
+        username: username || telegramUser?.username || firstName,
+        last_name: telegramUser?.last_name || '',
+        language_code: telegramUser?.language_code || 'uz',
+        is_premium: telegramUser?.is_premium || false,
+        registered_at: new Date().toISOString(),
+        last_active: new Date().toISOString(),
+        preferences: {
+            theme: 'dark',
+            notifications: true,
+            auto_play: false
+        }
     };
     
-    localStorage.setItem('anicomplex_user', JSON.stringify(currentUser));
+    saveUserData();
     
+    // API ga yuborish
     fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentUser)
     }).catch(() => console.log('API not available'));
     
-    showToast("✅ Ro'yxatdan o'tdingiz!");
+    showToast(`✅ Xush kelibsiz, ${firstName}!`);
     tg.HapticFeedback.notificationOccurred('success');
     
     document.getElementById('authSection').classList.add('hidden');
     document.getElementById('mainSection').classList.remove('hidden');
     document.getElementById('bottomNav').classList.remove('hidden');
     document.getElementById('userBadge').classList.remove('hidden');
-    document.getElementById('userBadge').innerHTML = `👤 ${name}`;
+    document.getElementById('userBadge').innerHTML = `👤 ${firstName}`;
+    
     loadMedia();
+    loadUserPreferences();
 }
 
-// ==================== TOAST ====================
-function showToast(message, isError = false) {
+function loadUserPreferences() {
+    favorites = loadFromLocalStorage('favorites') || [];
+    watchHistory = loadFromLocalStorage('watchHistory') || [];
+    notifications = loadFromLocalStorage('notifications') || [];
+}
+
+function saveFavorites() {
+    saveToLocalStorage('favorites', favorites);
+}
+
+function saveWatchHistory() {
+    saveToLocalStorage('watchHistory', watchHistory.slice(0, 50));
+}
+
+function addToWatchHistory(mediaId, partNumber) {
+    watchHistory.unshift({
+        media_id: mediaId,
+        part_number: partNumber,
+        timestamp: new Date().toISOString()
+    });
+    if (watchHistory.length > 50) watchHistory.pop();
+    saveWatchHistory();
+}
+
+// ============================================ //
+// 6. TOAST NOTIFICATION (2601-2650)           //
+// ============================================ //
+function showToast(message, isError = false, duration = 2500) {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+    
     const toast = document.createElement('div');
     toast.className = 'toast';
+    if (isError) toast.classList.add('toast-error');
     toast.textContent = message;
-    if (isError) toast.style.borderLeftColor = '#e74c3c';
-    else toast.style.borderLeftColor = '#2ecc71';
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2800);
+    
+    setTimeout(() => {
+        toast.style.animation = 'zoomOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 }
 
-// ==================== MEDIA LOADING ====================
+// ============================================ //
+// 7. MEDIA LOADING FROM BOT (2651-2750)       //
+// ============================================ //
 async function loadMedia() {
     const grid = document.getElementById('mediaGrid');
-    grid.innerHTML = '';
     
-    // Skeleton
+    // Show skeletons
+    grid.innerHTML = '';
     for (let i = 0; i < 4; i++) {
-        const skeleton = document.createElement('div');
-        skeleton.className = 'media-card skeleton';
-        skeleton.innerHTML = `
-            <div style="width:110px;height:150px;"></div>
-            <div style="padding:15px;flex:1;">
-                <div class="skeleton" style="height:18px;width:80%;margin-bottom:8px;"></div>
-                <div class="skeleton" style="height:12px;width:50%;margin-bottom:5px;"></div>
-                <div class="skeleton" style="height:12px;width:35%;"></div>
+        grid.innerHTML += `
+            <div class="skeleton-card">
+                <div class="skeleton-img skeleton"></div>
+                <div style="flex:1">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-text" style="width:60%"></div>
+                    <div class="skeleton skeleton-text" style="width:40%"></div>
+                    <div class="skeleton skeleton-text" style="width:50%"></div>
+                </div>
             </div>
         `;
-        grid.appendChild(skeleton);
     }
     
     try {
+        // Botdan media olish
         const response = await fetch('/api/media');
         const data = await response.json();
         
         if (data.data && data.data.length > 0) {
             mediaData = data.data;
+            extractGenres();
             renderMedia(mediaData);
         } else {
             showEmptyState();
         }
     } catch (error) {
+        console.log('API not available, waiting for bot data');
         showEmptyState();
     }
+}
+
+function extractGenres() {
+    const genresSet = new Set();
+    mediaData.forEach(media => {
+        if (media.genre) {
+            media.genre.split(',').forEach(g => {
+                const trimmed = g.trim();
+                if (trimmed) genresSet.add(trimmed);
+            });
+        }
+    });
+    allGenres = Array.from(genresSet).sort();
 }
 
 function showEmptyState() {
@@ -4147,41 +4928,74 @@ function showEmptyState() {
     grid.innerHTML = `
         <div class="empty-state">
             <div class="icon">🎬</div>
-            <p><b>Hozircha media mavjud emas</b></p>
-            <p style="margin-top: 10px;">Botga anime qo'shilganda<br>avtomatik ko'rinadi</p>
+            <h3>Hozircha media mavjud emas</h3>
+            <p>Botga anime qo'shilganda<br>avtomatik ko'rinadi</p>
+            <button class="btn-outline" onclick="loadMedia()" style="margin-top: 15px;">🔄 Yangilash</button>
         </div>
     `;
 }
 
+// ============================================ //
+// 8. RENDER MEDIA (2751-2850)                 //
+// ============================================ //
 function renderMedia(mediaList) {
     const grid = document.getElementById('mediaGrid');
-    grid.innerHTML = '';
     
     if (!mediaList || mediaList.length === 0) {
         showEmptyState();
         return;
     }
     
-    mediaList.forEach((media, idx) => {
+    grid.innerHTML = '';
+    
+    mediaList.forEach((media, index) => {
         const card = document.createElement('div');
         card.className = 'media-card';
-        card.style.animationDelay = `${idx * 0.05}s`;
+        card.style.animationDelay = `${index * 0.03}s`;
         card.onclick = () => openPlayer(media);
         
         const stars = media.rating ? '⭐'.repeat(Math.min(5, Math.floor(media.rating / 2))) : '';
-        const imgUrl = media.image_url || 'https://i.imgur.com/anime_default.jpg';
+        const ratingNum = (media.rating || 0).toFixed(1);
+        const viewsFormatted = formatNumber(media.views || 0);
+        const likesFormatted = formatNumber(media.likes || 0);
+        const statusIcon = media.status === 'completed' ? '✅' : '🟢';
+        const statusText = media.status === 'completed' ? 'Tugallangan' : 'Davom etmoqda';
+        const vipBadge = media.is_vip ? '<span class="media-badge">👑 VIP</span>' : '';
+        const imageUrl = media.image_url || 'https://i.imgur.com/anime_default.jpg';
         
         card.innerHTML = `
-            <img src="${imgUrl}" alt="${media.name}" onerror="this.src='https://i.imgur.com/anime_default.jpg'">
+            <img src="${imageUrl}" alt="${escapeHtml(media.name)}" loading="lazy" onerror="this.src='https://i.imgur.com/anime_default.jpg'">
             <div class="media-info">
-                <div class="media-title">🎬 ${media.name}</div>
-                <div class="media-meta">📀 ${media.total_parts || 0} qism • ${media.status === 'completed' ? '✅ Tugallangan' : '🟢 Davom etmoqda'}</div>
-                <div class="media-meta">👁 ${formatViews(media.views || 0)} • ❤️ ${media.likes || 0}</div>
-                <div class="rating-stars">${stars} ${(media.rating || 0).toFixed(1)}</div>
+                <div class="media-title">🎬 ${escapeHtml(media.name)}</div>
+                <div class="media-meta">
+                    <span>📀 ${media.total_parts || 0} qism</span>
+                    <span>${statusIcon} ${statusText}</span>
+                    ${vipBadge}
+                </div>
+                <div class="media-stats">
+                    <span>👁 ${viewsFormatted}</span>
+                    <span>❤️ ${likesFormatted}</span>
+                </div>
+                <div class="rating-stars">${stars} ${ratingNum}/10</div>
             </div>
         `;
         grid.appendChild(card);
     });
+    
+    // Genre taglarni qo'shish
+    if (allGenres.length > 0) {
+        const tabsContainer = document.getElementById('tabs');
+        const genreTabs = allGenres.slice(0, 6).map(g => 
+            `<button class="tab" onclick="loadGenre('${g}')">#${g}</button>`
+        ).join('');
+        tabsContainer.innerHTML += genreTabs;
+    }
+}
+
+function loadGenre(genre) {
+    const filtered = mediaData.filter(m => m.genre && m.genre.includes(genre));
+    renderMedia(filtered);
+    showToast(`#${genre} - ${filtered.length} ta anime topildi`);
 }
 
 function loadTab(type) {
@@ -4189,21 +5003,53 @@ function loadTab(type) {
     if (event?.target) event.target.classList.add('active');
     
     let filtered = [...mediaData];
-    if (type === 'ongoing') filtered = mediaData.filter(m => m.status === 'ongoing');
-    else if (type === 'completed') filtered = mediaData.filter(m => m.status === 'completed');
-    else if (type === 'popular') filtered = [...mediaData].sort((a,b) => (b.views||0) - (a.views||0));
+    switch(type) {
+        case 'ongoing':
+            filtered = mediaData.filter(m => m.status === 'ongoing');
+            break;
+        case 'completed':
+            filtered = mediaData.filter(m => m.status === 'completed');
+            break;
+        case 'popular':
+            filtered = [...mediaData].sort((a,b) => (b.views||0) - (a.views||0));
+            break;
+        case 'vip':
+            filtered = mediaData.filter(m => m.is_vip === 1 || m.is_vip === true);
+            break;
+        case 'recent':
+            filtered = [...mediaData].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+            break;
+        default:
+            filtered = mediaData;
+    }
     
     renderMedia(filtered);
     tg.HapticFeedback.impactOccurred('light');
 }
 
+// ============================================ //
+// 9. SEARCH FUNCTIONS (2851-2900)             //
+// ============================================ //
 function searchAnime() {
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
-    if (!query) { loadMedia(); return; }
+    if (!query) {
+        loadMedia();
+        return;
+    }
     
-    const filtered = mediaData.filter(m => m.name.toLowerCase().includes(query));
+    const filtered = mediaData.filter(m => 
+        m.name.toLowerCase().includes(query) ||
+        (m.code && m.code.toString().includes(query)) ||
+        (m.genre && m.genre.toLowerCase().includes(query))
+    );
+    
     renderMedia(filtered);
-    if (filtered.length === 0) showToast("❌ Hech narsa topilmadi!", true);
+    
+    if (filtered.length === 0) {
+        showToast(`❌ "${query}" bo'yicha hech narsa topilmadi`, true);
+    } else {
+        showToast(`🔍 ${filtered.length} ta natija topildi`);
+    }
 }
 
 function scrollToSearch() {
@@ -4211,41 +5057,93 @@ function scrollToSearch() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ==================== PLAYER ====================
+// ============================================ //
+// 10. PLAYER FUNCTIONS (2901-3050)            //
+// ============================================ //
 function openPlayer(media) {
     currentMedia = media;
+    
     document.getElementById('mediaGrid').classList.add('hidden');
     document.querySelector('.tabs').classList.add('hidden');
     document.querySelector('.search-container').classList.add('hidden');
     document.getElementById('playerSection').classList.remove('hidden');
     document.getElementById('playerTitle').textContent = media.name;
-    document.getElementById('likeCount').textContent = media.likes || 0;
+    document.getElementById('playerRating').textContent = (media.rating || 0).toFixed(1);
+    document.getElementById('playerViews').textContent = formatNumber(media.views || 0);
+    document.getElementById('playerParts').textContent = media.total_parts || 0;
+    document.getElementById('likeCount').textContent = formatNumber(media.likes || 0);
     document.getElementById('commentCount').textContent = (media.comments || []).length;
+    document.getElementById('commentsCount').textContent = `${(media.comments || []).length} ta izoh`;
     
-    const pb = document.getElementById('partButtons');
-    pb.innerHTML = '';
-    const totalParts = Math.min(media.total_parts || 0, 30);
-    for (let i = 1; i <= totalParts; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'part-btn';
-        btn.textContent = `${i}-qism`;
-        btn.onclick = () => loadPart(i);
-        pb.appendChild(btn);
+    const likeBtn = document.getElementById('likeBtn');
+    if (favorites.includes(media.id)) {
+        likeBtn.classList.add('liked');
+        isLiked = true;
+    } else {
+        likeBtn.classList.remove('liked');
+        isLiked = false;
     }
     
-    loadPart(1);
+    // Part buttons
+    const pb = document.getElementById('partButtons');
+    pb.innerHTML = '';
+    const totalParts = Math.min(media.total_parts || 0, 50);
+    
+    if (totalParts === 0) {
+        pb.innerHTML = '<div class="text-muted" style="text-align:center;padding:20px;">📀 Hozircha qismlar mavjud emas</div>';
+    } else {
+        for (let i = 1; i <= totalParts; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'part-btn';
+            btn.innerHTML = `<span>${i}</span>`;
+            btn.title = `${i}-qism`;
+            btn.onclick = () => loadPart(i);
+            pb.appendChild(btn);
+        }
+    }
+    
+    // Comments
+    loadComments();
+    
+    // Add to watch history
+    addToWatchHistory(media.id, 1);
+    
     tg.HapticFeedback.impactOccurred('medium');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function loadPart(partNum) {
     currentPart = partNum;
-    document.querySelectorAll('.part-btn').forEach(b => b.classList.remove('active'));
+    
+    document.querySelectorAll('.part-btn').forEach(btn => btn.classList.remove('active'));
     const btns = document.querySelectorAll('.part-btn');
     if (btns[partNum - 1]) btns[partNum - 1].classList.add('active');
     
     const video = document.getElementById('videoPlayer');
-    video.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
+    const parts = currentMedia.parts || [];
+    const part = parts.find(p => p.part_number === partNum);
+    
+    if (part && part.file_id) {
+        // Telegram video ID dan URL olish
+        video.src = part.file_id;
+    } else {
+        // Demo video
+        video.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
+    }
+    
     video.load();
+    addToWatchHistory(currentMedia.id, partNum);
+    
+    // Report to bot
+    fetch('/api/watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            user_id: currentUser?.id,
+            media_id: currentMedia?.id,
+            part_number: partNum
+        })
+    }).catch(() => {});
 }
 
 function closePlayer() {
@@ -4254,13 +5152,18 @@ function closePlayer() {
     document.querySelector('.tabs').classList.remove('hidden');
     document.querySelector('.search-container').classList.remove('hidden');
     document.getElementById('commentsSection').classList.add('hidden');
-    document.getElementById('videoPlayer').pause();
-    document.getElementById('videoPlayer').src = '';
+    
+    const video = document.getElementById('videoPlayer');
+    video.pause();
+    video.src = '';
+    
     loadMedia();
     tg.HapticFeedback.impactOccurred('light');
 }
 
-// ==================== LIKES ====================
+// ============================================ //
+// 11. LIKES FUNCTIONS (3051-3120)             //
+// ============================================ //
 function toggleLike() {
     isLiked = !isLiked;
     const btn = document.getElementById('likeBtn');
@@ -4270,55 +5173,103 @@ function toggleLike() {
     
     btn.classList.toggle('liked', isLiked);
     const countSpan = document.getElementById('likeCount');
-    let newCount = parseInt(countSpan.textContent) + (isLiked ? 1 : -1);
-    countSpan.textContent = newCount;
+    let currentCount = parseInt(countSpan.textContent.replace(/[^0-9]/g, '')) || 0;
+    let newCount = currentCount + (isLiked ? 1 : -1);
+    countSpan.textContent = formatNumber(newCount);
     
     if (currentMedia) {
         currentMedia.likes = (currentMedia.likes || 0) + (isLiked ? 1 : -1);
     }
     
+    if (isLiked) {
+        if (!favorites.includes(currentMedia?.id)) {
+            favorites.push(currentMedia?.id);
+            saveFavorites();
+        }
+        showToast("❤️ Sevimlilarga qo'shildi!");
+    } else {
+        favorites = favorites.filter(id => id !== currentMedia?.id);
+        saveFavorites();
+        showToast("💔 Sevimlilardan o'chirildi");
+    }
+    
     fetch('/api/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ media_id: currentMedia?.id, liked: isLiked })
+        body: JSON.stringify({ 
+            user_id: currentUser?.id, 
+            media_id: currentMedia?.id, 
+            liked: isLiked 
+        })
     }).catch(() => {});
     
     tg.HapticFeedback.notificationOccurred('success');
-    if (isLiked) showToast("❤️ Layk qo'shildi!");
 }
 
-// ==================== COMMENTS ====================
+// ============================================ //
+// 12. COMMENTS FUNCTIONS (3121-3200)          //
+// ============================================ //
 function toggleComments() {
-    document.getElementById('commentsSection').classList.toggle('hidden');
-    loadComments();
+    const commentsSection = document.getElementById('commentsSection');
+    commentsSection.classList.toggle('hidden');
+    if (!commentsSection.classList.contains('hidden')) {
+        loadComments();
+    }
 }
 
 function loadComments() {
     const list = document.getElementById('commentsList');
     const comments = currentMedia?.comments || [];
-    list.innerHTML = comments.length === 0
-        ? '<p style="color:#aaa;text-align:center;padding:18px;">💬 Hozircha izohlar yo\'q</p>'
-        : comments.map(c => `
-            <div class="comment">
-                <div class="comment-user">👤 ${escapeHtml(c.username)}</div>
-                <div class="comment-text">${escapeHtml(c.text)}</div>
+    
+    if (comments.length === 0) {
+        list.innerHTML = `
+            <div class="text-center text-muted" style="padding: 30px;">
+                💬 Hozircha izohlar yo'q
+                <br><small>Birinchi izoh qoldiring!</small>
             </div>
-        `).join('');
+        `;
+        return;
+    }
+    
+    list.innerHTML = comments.map(c => `
+        <div class="comment">
+            <div class="comment-header">
+                <div class="comment-avatar">👤</div>
+                <span class="comment-user">${escapeHtml(c.username || 'Anonim')}</span>
+                <span class="comment-time">${formatTime(c.created_at || c.timestamp)}</span>
+            </div>
+            <div class="comment-text">${escapeHtml(c.text)}</div>
+        </div>
+    `).join('');
 }
 
 function addComment() {
     const input = document.getElementById('commentInput');
     const text = input.value.trim();
-    if (!text) { showToast("❌ Izoh yozing!", true); return; }
+    
+    if (!text) {
+        showToast("❌ Izoh yozing!", true);
+        return;
+    }
+    
+    if (text.length > 500) {
+        showToast("❌ Izoh 500 belgidan oshmasligi kerak!", true);
+        return;
+    }
     
     const comment = {
-        username: currentUser?.username || 'Anonim',
-        text: text
+        id: Date.now(),
+        username: currentUser?.username || currentUser?.first_name || 'Anonim',
+        user_id: currentUser?.id,
+        text: text,
+        created_at: new Date().toISOString()
     };
     
     if (!currentMedia.comments) currentMedia.comments = [];
     currentMedia.comments.unshift(comment);
-    document.getElementById('commentCount').textContent = currentMedia.comments.length;
+    
+    document.getElementById('commentCount').textContent = formatNumber(currentMedia.comments.length);
+    document.getElementById('commentsCount').textContent = `${currentMedia.comments.length} ta izoh`;
     loadComments();
     input.value = '';
     
@@ -4329,47 +5280,179 @@ function addComment() {
     fetch('/api/comment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ media_id: currentMedia?.id, text })
+        body: JSON.stringify({ 
+            user_id: currentUser?.id,
+            username: currentUser?.username,
+            media_id: currentMedia?.id, 
+            text: text 
+        })
     }).catch(() => {});
     
     tg.HapticFeedback.notificationOccurred('success');
     showToast("✅ Izoh qo'shildi!");
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
+function shareMedia() {
+    if (!currentMedia) return;
+    
+    const botUsername = window.Telegram.WebApp.initDataUnsafe?.user?.username || 'AniComplex_Rasmiy_bot';
+    const shareUrl = `https://t.me/share/url?url=https://t.me/${botUsername}?start=code_${currentMedia.code}&text=🎬 ${encodeURIComponent(currentMedia.name)} - AniComplex botda tomosha qiling!`;
+    
+    tg.openTelegramLink(shareUrl);
+    showToast("📤 Ulashish oynasi ochilmoqda");
 }
 
-// ==================== UTILS ====================
-function formatViews(num) {
+// ============================================ //
+// 13. UTILITY FUNCTIONS (3201-3280)           //
+// ============================================ //
+function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
 }
 
-// ==================== AUTO REFRESH ====================
-setInterval(() => {
+function formatTime(isoString) {
+    if (!isoString) return 'hozir';
+    const date = new Date(isoString);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return 'hozir';
+    if (minutes < 60) return `${minutes} daqiqa oldin`;
+    if (hours < 24) return `${hours} soat oldin`;
+    if (days < 7) return `${days} kun oldin`;
+    return date.toLocaleDateString('uz-UZ');
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function showProfile() {
+    const user = currentUser;
+    if (!user) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>👤 Profil</h3>
+            <p><strong>Ism:</strong> ${escapeHtml(user.first_name)}</p>
+            <p><strong>Username:</strong> @${escapeHtml(user.username)}</p>
+            <p><strong>ID:</strong> ${user.id}</p>
+            <p><strong>Ro'yxatdan o'tgan:</strong> ${new Date(user.registered_at).toLocaleDateString('uz-UZ')}</p>
+            <p><strong>⭐ Sevimlilar:</strong> ${favorites.length} ta</p>
+            <p><strong>📜 Tomosha tarixi:</strong> ${watchHistory.length} ta</p>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Yopish</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
+}
+
+// ============================================ //
+// 14. AUTO REFRESH (3281-3320)                //
+// ============================================ //
+let refreshInterval = setInterval(() => {
+    if (!document.getElementById('playerSection').classList.contains('hidden')) return;
     if (document.getElementById('mediaGrid') && !document.getElementById('mediaGrid').classList.contains('hidden')) {
         loadMedia();
     }
 }, 30000);
 
-// ==================== START ====================
-checkAuth();
-
+// ============================================ //
+// 15. BACK BUTTON HANDLER (3321-3350)         //
+// ============================================ //
 if (tg.BackButton) {
     tg.BackButton.onClick(() => {
         if (!document.getElementById('playerSection').classList.contains('hidden')) {
             closePlayer();
+        } else if (document.querySelector('.modal')) {
+            document.querySelector('.modal').remove();
+        } else {
+            tg.close();
         }
     });
 }
+
+// ============================================ //
+// 16. INITIALIZE APP (3351-3380)              //
+// ============================================ //
+checkAuth();
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (refreshInterval) clearInterval(refreshInterval);
+});
+
+// Add CSS for modal if not already present
+if (!document.querySelector('#modal-styles')) {
+    const style = document.createElement('style');
+    style.id = 'modal-styles';
+    style.textContent = `
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .modal-content {
+            background: linear-gradient(135deg, rgba(25,25,40,0.98), rgba(15,15,25,0.98));
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            padding: 25px;
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+            animation: scaleIn 0.3s ease;
+            border: 1px solid rgba(231,76,60,0.3);
+        }
+        .modal-content p {
+            margin: 10px 0;
+            text-align: left;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            flex: 1;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+console.log('✅ AniComplex Mini App loaded successfully!');
 </script>
 </body>
 </html>'''
