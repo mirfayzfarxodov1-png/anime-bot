@@ -104,34 +104,34 @@ class Database:
         await self._migrate_tables()
         logger.info("✅ Database connected")
     
-    async def _init_tables(self):   # <-- 4 SPACE BILAN KLASS ICHIDA!
-        # Media table
-        await self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS media (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            code INTEGER UNIQUE NOT NULL,
-            name TEXT UNIQUE NOT NULL,
-            genre TEXT, status TEXT DEFAULT 'ongoing',
-            total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
-            rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
-            is_vip INTEGER DEFAULT 0, image_url TEXT,
-            description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
-            release_year INTEGER, created_at TEXT, updated_at TEXT,
-            post_message_id INTEGER, post_channel TEXT
-        )''')
-        
-        # Parts table
-        await self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS parts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            media_id INTEGER, part_number INTEGER,
-            file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
-            duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
-            views INTEGER DEFAULT 0, created_at TEXT,
-            post_message_id INTEGER, post_channel TEXT,
-            FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
-        )''')
-        
+   async def _init_tables(self):
+    # Media table
+    await self.conn.execute('''
+    CREATE TABLE IF NOT EXISTS media (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code INTEGER UNIQUE NOT NULL,
+        name TEXT UNIQUE NOT NULL,
+        genre TEXT, status TEXT DEFAULT 'ongoing',
+        total_parts INTEGER DEFAULT 0, views INTEGER DEFAULT 0,
+        rating REAL DEFAULT 0, rating_count INTEGER DEFAULT 0,
+        is_vip INTEGER DEFAULT 0, image_url TEXT,
+        description TEXT, voice TEXT, quality TEXT DEFAULT '720p',
+        release_year INTEGER, created_at TEXT, updated_at TEXT,
+        post_message_id INTEGER, post_channel TEXT
+    )''')
+    
+    # Parts table
+    await self.conn.execute('''
+    CREATE TABLE IF NOT EXISTS parts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER, part_number INTEGER,
+        file_id TEXT, caption TEXT, is_vip INTEGER DEFAULT 0,
+        duration INTEGER DEFAULT 0, file_size INTEGER DEFAULT 0,
+        views INTEGER DEFAULT 0, created_at TEXT,
+        post_message_id INTEGER, post_channel TEXT,
+        FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
+    )''')
+    
     # Users table
     await self.conn.execute('''
     CREATE TABLE IF NOT EXISTS users (
