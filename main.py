@@ -818,7 +818,7 @@ class Database:
 
 db = Database()   
    
- async def get_vip_requests(self, status="pending"):
+    async def get_vip_requests(self, status="pending"):
         async with self.conn.execute("SELECT * FROM vip_requests WHERE status=? ORDER BY created_at DESC", (status,)) as c:
             return await c.fetchall()
     
