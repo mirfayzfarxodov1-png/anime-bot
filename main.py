@@ -6123,76 +6123,94 @@ class MiniAppAPI:
     
     @staticmethod
     async def get_media(request):
-        """Barcha medialarni qaytaradi"""
-        media_list = []
-        try:
-            # Database ulanishini tekshirish
-            if db.conn is None:
-                print("❌ Database connection is None!")
-                return web.json_response({"status": "error", "message": "Database not connected"}, status=500)
-            
-            # Oddiy query - barcha medialarni olish
-            async with db.conn.execute("SELECT * FROM media ORDER BY id DESC") as c:
-                rows = await c.fetchall()
-                print(f"✅ Found {len(rows)} media in database")  # Debug log
-                
-                for row in rows:
-                    # Like sonini olish
-                    likes = 0
-                    try:
-                        async with db.conn.execute("SELECT COUNT(*) FROM likes WHERE media_id=?", (row['id'],)) as lc:
-                            like_row = await lc.fetchone()
-                            likes = like_row[0] if like_row else 0
-                    except:
-                        likes = 0
-                    
-                    # Commentlarni olish
-                    comments = []
-                    try:
-                        async with db.conn.execute(
-                            "SELECT username, text, created_at FROM comments WHERE media_id=? ORDER BY created_at DESC LIMIT 20", 
-                            (row['id'],)
-                        ) as cc:
-                            comments = await cc.fetchall()
-                    except:
-                        comments = []
-                    
-                    # Qismlarni olish
-                    parts = []
-                    try:
-                        async with db.conn.execute(
-                            "SELECT id, part_number, file_id, caption FROM parts WHERE media_id=? ORDER BY part_number", 
-                            (row['id'],)
-                        ) as pc:
-                            parts = await pc.fetchall()
-                    except:
-                        parts = []
-                    
-                    media_list.append({
-                        "id": row['id'],
-                        "name": row['name'],
-                        "code": row['code'],
-                        "total_parts": row['total_parts'] or 0,
-                        "status": row['status'] or "ongoing",
-                        "rating": float(row['rating'] or 0),
-                        "rating_count": row['rating_count'] or 0,
-                        "image_url": row['image_url'] or "",
-                        "views": row['views'] or 0,
-                        "likes": likes,
-                        "comments": [{"username": c['username'] or "Anonim", "text": c['text'], "created_at": c['created_at']} for c in comments],
-                        "parts": [{"id": p['id'], "part_number": p['part_number'], "file_id": p['file_id'], "caption": p['caption']} for p in parts],
-                        "is_vip": row['is_vip'] or 0,
-                        "description": row['description'] or "",
-                        "genre": row['genre'] or "",
-                        "created_at": row['created_at']
-                    })
-                    
-        except Exception as e:
-            print(f"❌ API get_media error: {e}")
-            print(traceback.format_exc())
+    """Barcha medialarni qaytaradi"""
+    media_list = []
+    try:
+        # Database ulanishini tekshirish
+        if db.conn is None:
+            print("❌ Database connection is None!")
+            return web.json_response({"status": "error", "message": "Database not connected"}, status=500)
         
-        print(f"📊 Returning {len(media_list)} media items")
-        return web.json_response({"status": "ok", "data": media_list})
+        # Oddiy query - barcha medialarni olish
+        async with db.conn.execute("SELECT * FROM media ORDER BY id DESC") as c:
+            rows = await c.fetchall()
+            print(f"✅ Found {len(rows)} media in database")  # Debug log
+            
+            # ========== YANGI QO'SHILGAN QISM (TEST MEDIA) ==========
+            # Agar media bo'lmasa, test ma'lumot qo'shamiz
+            if len(rows) == 0:
+                print("⚠️ No media found, adding test anime...")
+                # Test anime qo'shish
+                now = datetime.now().isoformat()
+                await db.conn.execute('''
+                INSERT INTO media (code, name, genre, total_parts, views, rating, created_at, updated_at, image_url, description)
+                VALUES (1001, 'One Piece', 'Sarguzasht, Jangari', 10, 0, 0, ?, ?, 'https://i.imgur.com/one_piece.jpg', 'Qashqadaryo dengizlarida sayohat')
+                ''', (now, now))
+                await db.conn.commit()
+                
+                # Qayta o'qish
+                async with db.conn.execute("SELECT * FROM media ORDER BY id DESC") as c2:
+                    rows = await c2.fetchall()
+                print(f"✅ After adding test media: {len(rows)} media")
+            # ========== YANGI QISM TUGADI ==========
+            
+            for row in rows:
+                # Like sonini olish
+                likes = 0
+                try:
+                    async with db.conn.execute("SELECT COUNT(*) FROM likes WHERE media_id=?", (row['id'],)) as lc:
+                        like_row = await lc.fetchone()
+                        likes = like_row[0] if like_row else 0
+                except:
+                    likes = 0
+                
+                # Commentlarni olish
+                comments = []
+                try:
+                    async with db.conn.execute(
+                        "SELECT username, text, created_at FROM comments WHERE media_id=? ORDER BY created_at DESC LIMIT 20", 
+                        (row['id'],)
+                    ) as cc:
+                        comments = await cc.fetchall()
+                except:
+                    comments = []
+                
+                # Qismlarni olish
+                parts = []
+                try:
+                    async with db.conn.execute(
+                        "SELECT id, part_number, file_id, caption FROM parts WHERE media_id=? ORDER BY part_number", 
+                        (row['id'],)
+                    ) as pc:
+                        parts = await pc.fetchall()
+                except:
+                    parts = []
+                
+                media_list.append({
+                    "id": row['id'],
+                    "name": row['name'],
+                    "code": row['code'],
+                    "total_parts": row['total_parts'] or 0,
+                    "status": row['status'] or "ongoing",
+                    "rating": float(row['rating'] or 0),
+                    "rating_count": row['rating_count'] or 0,
+                    "image_url": row['image_url'] or "https://i.imgur.com/anime_default.jpg",
+                    "views": row['views'] or 0,
+                    "likes": likes,
+                    "comments": [{"username": c['username'] or "Anonim", "text": c['text'], "created_at": c['created_at']} for c in comments],
+                    "parts": [{"id": p['id'], "part_number": p['part_number'], "file_id": p['file_id'], "caption": p['caption']} for p in parts],
+                    "is_vip": row['is_vip'] or 0,
+                    "description": row['description'] or "",
+                    "genre": row['genre'] or "",
+                    "created_at": row['created_at']
+                })
+                
+    except Exception as e:
+        print(f"❌ API get_media error: {e}")
+        print(traceback.format_exc())
+    
+    print(f"📊 Returning {len(media_list)} media items")
+    return web.json_response({"status": "ok", "data": media_list})
     
     @staticmethod
     async def register_user(request):
@@ -6315,12 +6333,12 @@ api_app.router.add_get('/api/video/{file_id}', MiniAppAPI.get_video)
 
 
 async def start_api_server():
-    """API serverni ishga tushirish"""
     runner = web.AppRunner(api_app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    port = int(os.environ.get('PORT', 8080))  # Render PORT ni o'qiydi
+    site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print("✅ MiniApp API server running on port 8080")
+    print(f"✅ MiniApp API server running on port {port}")
 
 # ================= MAIN =================
 async def main():
