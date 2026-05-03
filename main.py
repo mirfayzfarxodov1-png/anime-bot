@@ -121,14 +121,21 @@ class Database:
             FOREIGN KEY (media_id) REFERENCES media (id) ON DELETE CASCADE
         )''')
         
-        # Users table
+        # Users table - TO'G'RILANGAN (id ishlatiladi)
         await self.conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY, username TEXT,
-            first_name TEXT, last_name TEXT, phone TEXT,
-            is_vip INTEGER DEFAULT 0, vip_expiry TEXT,
-            is_blocked INTEGER DEFAULT 0, language TEXT DEFAULT 'uz',
-            registered_at TEXT, last_active TEXT, total_views INTEGER DEFAULT 0,
+            id INTEGER PRIMARY KEY,
+            username TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            phone TEXT,
+            is_vip INTEGER DEFAULT 0,
+            vip_expiry TEXT,
+            is_blocked INTEGER DEFAULT 0,
+            language TEXT DEFAULT 'uz',
+            registered_at TEXT,
+            last_active TEXT,
+            total_views INTEGER DEFAULT 0,
             is_subscribed INTEGER DEFAULT 0
         )''')
         
@@ -245,7 +252,7 @@ class Database:
     
     async def add_user(self, uid, username="", first_name="", last_name=""):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT OR IGNORE INTO users (id,username,first_name,last_name,registered_at,last_active) VALUES(?,?,?,?,?,?)", 
+        await self.conn.execute("INSERT OR IGNORE INTO users (id, username, first_name, last_name, registered_at, last_active) VALUES(?,?,?,?,?,?)", 
                                (uid, username, first_name, last_name, now, now))
         await self.conn.commit()
         today = datetime.now().strftime("%Y-%m-%d")
@@ -279,7 +286,7 @@ class Database:
     
     async def add_admin(self, uid, added_by):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT OR IGNORE INTO admins (user_id,added_by,added_at) VALUES(?,?,?)", (uid, added_by, now))
+        await self.conn.execute("INSERT OR IGNORE INTO admins (user_id, added_by, added_at) VALUES(?,?,?)", (uid, added_by, now))
         await self.conn.commit()
     
     async def remove_admin(self, uid):
@@ -294,16 +301,19 @@ class Database:
             row = await c.fetchone()
             return row[0] if row else 0
     
+    # ================= MUHIM: is_vip METODI TUZATILDI =================
     async def is_vip(self, uid):
-        async with self.conn.execute("SELECT is_vip,vip_expiry FROM users WHERE id=?", (uid,)) as c:
+        async with self.conn.execute("SELECT is_vip, vip_expiry FROM users WHERE id=?", (uid,)) as c:
             row = await c.fetchone()
-            if not row or row["is_vip"] != 1:
+            if not row:
+                return False
+            if row["is_vip"] != 1:
                 return False
             if row["vip_expiry"]:
                 try:
                     if datetime.fromisoformat(row["vip_expiry"]) > datetime.now():
                         return True
-                    await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE id=?", (uid,))
+                    await self.conn.execute("UPDATE users SET is_vip=0, vip_expiry=NULL WHERE id=?", (uid,))
                     await self.conn.commit()
                 except:
                     return True
@@ -311,11 +321,11 @@ class Database:
     
     async def set_vip(self, uid, days=30):
         expiry = (datetime.now() + timedelta(days=days)).isoformat()
-        await self.conn.execute("UPDATE users SET is_vip=1,vip_expiry=? WHERE id=?", (expiry, uid))
+        await self.conn.execute("UPDATE users SET is_vip=1, vip_expiry=? WHERE id=?", (expiry, uid))
         await self.conn.commit()
     
     async def remove_vip(self, uid):
-        await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE id=?", (uid,))
+        await self.conn.execute("UPDATE users SET is_vip=0, vip_expiry=NULL WHERE id=?", (uid,))
         await self.conn.commit()
     
     async def get_vip_count(self):
@@ -324,7 +334,7 @@ class Database:
             return row[0] if row else 0
     
     async def check_all_vip_expiry(self):
-        await self.conn.execute("UPDATE users SET is_vip=0,vip_expiry=NULL WHERE is_vip=1 AND vip_expiry<?", 
+        await self.conn.execute("UPDATE users SET is_vip=0, vip_expiry=NULL WHERE is_vip=1 AND vip_expiry<?", 
                                (datetime.now().isoformat(),))
         await self.conn.commit()
     
@@ -369,12 +379,11 @@ class Database:
     
     async def add_vip_request(self, uid, phone, amount, proof=""):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT INTO vip_requests (user_id,phone_number,amount,payment_proof,status,created_at) VALUES(?,?,?,?,'pending',?)", 
+        await self.conn.execute("INSERT INTO vip_requests (user_id, phone_number, amount, payment_proof, status, created_at) VALUES(?,?,?,?,'pending',?)", 
                                (uid, phone, amount, proof, now))
         await self.conn.commit()
         return await self.get_last_insert_id()
     
-    # ================= BU FUNKSIYALAR TO'G'RI INDEATATSIYA BILAN =================
     async def get_vip_requests(self, status="pending"):
         async with self.conn.execute("SELECT * FROM vip_requests WHERE status=? ORDER BY created_at DESC", (status,)) as c:
             return await c.fetchall()
@@ -385,7 +394,7 @@ class Database:
     
     async def update_vip_request(self, rid, status, processed_by):
         now = datetime.now().isoformat()
-        await self.conn.execute("UPDATE vip_requests SET status=?,processed_at=?,processed_by=? WHERE id=?", 
+        await self.conn.execute("UPDATE vip_requests SET status=?, processed_at=?, processed_by=? WHERE id=?", 
                                (status, now, processed_by, rid))
         await self.conn.commit()
     
@@ -395,7 +404,7 @@ class Database:
         if await self.fetch_one("SELECT id FROM media WHERE name=?", (name,)):
             return False, "Bu nom mavjud!"
         now = datetime.now().isoformat()
-        await self.conn.execute('''INSERT INTO media (code,name,genre,image_url,description,voice,quality,release_year,is_vip,created_at,updated_at) 
+        await self.conn.execute('''INSERT INTO media (code, name, genre, image_url, description, voice, quality, release_year, is_vip, created_at, updated_at) 
                                  VALUES(?,?,?,?,?,?,?,?,?,?,?)''', 
                                (code, name, genre, image_url, description, voice, quality, release_year, 1 if is_vip else 0, now, now))
         await self.conn.commit()
@@ -417,56 +426,56 @@ class Database:
             return await c.fetchall()
     
     async def get_all_media(self, user_is_vip=False):
-        q = "SELECT id,name,code,total_parts,status,is_vip,views,rating,image_url FROM media"
+        q = "SELECT id, name, code, total_parts, status, is_vip, views, rating, image_url FROM media"
         if not user_is_vip:
             q += " WHERE is_vip=0"
         async with self.conn.execute(q + " ORDER BY name") as c:
             return await c.fetchall()
     
     async def get_ongoing_media(self, user_is_vip=False):
-        q = "SELECT id,name,code,total_parts,views,rating FROM media WHERE status='ongoing'"
+        q = "SELECT id, name, code, total_parts, views, rating FROM media WHERE status='ongoing'"
         if not user_is_vip:
             q += " AND is_vip=0"
         async with self.conn.execute(q + " ORDER BY name") as c:
             return await c.fetchall()
     
     async def get_completed_media(self, user_is_vip=False):
-        q = "SELECT id,name,code,total_parts,views,rating FROM media WHERE status='completed'"
+        q = "SELECT id, name, code, total_parts, views, rating FROM media WHERE status='completed'"
         if not user_is_vip:
             q += " AND is_vip=0"
         async with self.conn.execute(q + " ORDER BY name") as c:
             return await c.fetchall()
     
     async def get_most_viewed(self, limit=10, user_is_vip=False):
-        q = "SELECT id,name,code,views,is_vip,rating,image_url FROM media"
+        q = "SELECT id, name, code, views, is_vip, rating, image_url FROM media"
         if not user_is_vip:
             q += " WHERE is_vip=0"
         async with self.conn.execute(q + " ORDER BY views DESC LIMIT ?", (limit,)) as c:
             return await c.fetchall()
     
     async def get_highest_rated(self, limit=10, user_is_vip=False):
-        q = "SELECT id,name,code,rating,rating_count,is_vip,image_url FROM media WHERE rating_count>0"
+        q = "SELECT id, name, code, rating, rating_count, is_vip, image_url FROM media WHERE rating_count>0"
         if not user_is_vip:
             q += " AND is_vip=0"
         async with self.conn.execute(q + " ORDER BY rating DESC LIMIT ?", (limit,)) as c:
             return await c.fetchall()
     
     async def get_recent_media(self, limit=10, user_is_vip=False):
-        q = "SELECT id,name,code,created_at,is_vip,image_url FROM media"
+        q = "SELECT id, name, code, created_at, is_vip, image_url FROM media"
         if not user_is_vip:
             q += " WHERE is_vip=0"
         async with self.conn.execute(q + " ORDER BY created_at DESC LIMIT ?", (limit,)) as c:
             return await c.fetchall()
     
     async def get_random_media(self, user_is_vip=False):
-        q = "SELECT id,name,code,image_url FROM media"
+        q = "SELECT id, name, code, image_url FROM media"
         if not user_is_vip:
             q += " WHERE is_vip=0"
         async with self.conn.execute(q + " ORDER BY RANDOM() LIMIT 1") as c:
             return await c.fetchone()
     
     async def get_media_by_genre(self, genre, user_is_vip=False):
-        q = "SELECT id,name,code,total_parts,status,is_vip,views,rating,image_url FROM media WHERE genre LIKE ?"
+        q = "SELECT id, name, code, total_parts, status, is_vip, views, rating, image_url FROM media WHERE genre LIKE ?"
         if not user_is_vip:
             q += " AND is_vip=0"
         async with self.conn.execute(q + " ORDER BY name", (f"%{genre}%",)) as c:
@@ -485,11 +494,11 @@ class Database:
     
     async def update_media(self, mid, field, value):
         now = datetime.now().isoformat()
-        await self.conn.execute(f"UPDATE media SET {field}=?,updated_at=? WHERE id=?", (value, now, mid))
+        await self.conn.execute(f"UPDATE media SET {field}=?, updated_at=? WHERE id=?", (value, now, mid))
         await self.conn.commit()
     
     async def update_media_post_info(self, mid, msg_id, channel):
-        await self.conn.execute("UPDATE media SET post_message_id=?,post_channel=? WHERE id=?", (msg_id, channel, mid))
+        await self.conn.execute("UPDATE media SET post_message_id=?, post_channel=? WHERE id=?", (msg_id, channel, mid))
         await self.conn.commit()
     
     async def delete_media(self, mid):
@@ -517,9 +526,9 @@ class Database:
     
     async def add_part(self, mid, pnum, file_id, caption="", is_vip=False, duration=0, file_size=0):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT INTO parts (media_id,part_number,file_id,caption,is_vip,duration,file_size,created_at) VALUES(?,?,?,?,?,?,?,?)", 
+        await self.conn.execute("INSERT INTO parts (media_id, part_number, file_id, caption, is_vip, duration, file_size, created_at) VALUES(?,?,?,?,?,?,?,?)", 
                                (mid, pnum, file_id, caption, 1 if is_vip else 0, duration, file_size, now))
-        await self.conn.execute("UPDATE media SET total_parts=total_parts+1,updated_at=? WHERE id=?", (now, mid))
+        await self.conn.execute("UPDATE media SET total_parts=total_parts+1, updated_at=? WHERE id=?", (now, mid))
         await self.conn.commit()
         media = await self.get_media_by_id(mid)
         if media:
@@ -546,7 +555,7 @@ class Database:
         await self.conn.commit()
     
     async def update_part_post_info(self, pid, msg_id, channel):
-        await self.conn.execute("UPDATE parts SET post_message_id=?,post_channel=? WHERE id=?", (msg_id, channel, pid))
+        await self.conn.execute("UPDATE parts SET post_message_id=?, post_channel=? WHERE id=?", (msg_id, channel, pid))
         await self.conn.commit()
     
     async def delete_part(self, pid):
@@ -568,7 +577,7 @@ class Database:
             return row[0] if row else 0
     
     async def add_favorite(self, uid, mid):
-        await self.conn.execute("INSERT OR IGNORE INTO favorites (user_id,media_id,added_at) VALUES(?,?,?)", 
+        await self.conn.execute("INSERT OR IGNORE INTO favorites (user_id, media_id, added_at) VALUES(?,?,?)", 
                                (uid, mid, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -585,7 +594,7 @@ class Database:
             return await c.fetchone() is not None
     
     async def add_notification(self, uid, mid, media_name):
-        await self.conn.execute("INSERT OR IGNORE INTO notifications (user_id,media_id,media_name,is_active,created_at) VALUES(?,?,?,1,?)", 
+        await self.conn.execute("INSERT OR IGNORE INTO notifications (user_id, media_id, media_name, is_active, created_at) VALUES(?,?,?,1,?)", 
                                (uid, mid, media_name, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -598,7 +607,7 @@ class Database:
             return await c.fetchone() is not None
     
     async def get_notifications(self, uid):
-        async with self.conn.execute("SELECT media_id,media_name FROM notifications WHERE user_id=? AND is_active=1", (uid,)) as c:
+        async with self.conn.execute("SELECT media_id, media_name FROM notifications WHERE user_id=? AND is_active=1", (uid,)) as c:
             return await c.fetchall()
     
     async def get_users_by_notification(self, mid):
@@ -615,13 +624,13 @@ class Database:
                 pass
     
     async def add_rating(self, uid, mid, rating):
-        await self.conn.execute("INSERT OR REPLACE INTO ratings (user_id,media_id,rating,created_at) VALUES(?,?,?,?)", 
+        await self.conn.execute("INSERT OR REPLACE INTO ratings (user_id, media_id, rating, created_at) VALUES(?,?,?,?)", 
                                (uid, mid, rating, datetime.now().isoformat()))
         await self.conn.commit()
         async with self.conn.execute("SELECT AVG(rating) as avg, COUNT(*) as cnt FROM ratings WHERE media_id=?", (mid,)) as c:
             row = await c.fetchone()
             if row:
-                await self.conn.execute("UPDATE media SET rating=?,rating_count=? WHERE id=?", (row["avg"] or 0, row["cnt"] or 0, mid))
+                await self.conn.execute("UPDATE media SET rating=?, rating_count=? WHERE id=?", (row["avg"] or 0, row["cnt"] or 0, mid))
                 await self.conn.commit()
     
     async def get_user_rating(self, uid, mid):
@@ -630,7 +639,7 @@ class Database:
             return row["rating"] if row else None
     
     async def add_report(self, uid, mid, reason):
-        await self.conn.execute("INSERT INTO reports (user_id,media_id,reason,status,created_at) VALUES(?,?,?,'pending',?)", 
+        await self.conn.execute("INSERT INTO reports (user_id, media_id, reason, status, created_at) VALUES(?,?,?,'pending',?)", 
                                (uid, mid, reason, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -640,12 +649,12 @@ class Database:
     
     async def add_referral(self, ref_id, refd_id):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT INTO referrals (referrer_id,referred_id,created_at) VALUES(?,?,?)", (ref_id, refd_id, now))
+        await self.conn.execute("INSERT INTO referrals (referrer_id, referred_id, created_at) VALUES(?,?,?)", (ref_id, refd_id, now))
         await self.conn.commit()
         async with self.conn.execute("SELECT COUNT(*) as cnt FROM referrals WHERE referrer_id=? AND is_rewarded=0", (ref_id,)) as c:
             row = await c.fetchone()
             if row and row["cnt"] >= 5:
-                await self.conn.execute("UPDATE users SET is_vip=1,vip_expiry=? WHERE id=?", 
+                await self.conn.execute("UPDATE users SET is_vip=1, vip_expiry=? WHERE id=?", 
                                        ((datetime.now()+timedelta(days=1)).isoformat(), ref_id))
                 await self.conn.execute("UPDATE referrals SET is_rewarded=1 WHERE referrer_id=?", (ref_id,))
                 await self.conn.commit()
@@ -679,7 +688,7 @@ class Database:
     
     async def add_forced_channel(self, username, link, added_by):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT OR IGNORE INTO forced_channels (channel_username,channel_link,is_active,added_at,added_by) VALUES(?,?,1,?,?)", 
+        await self.conn.execute("INSERT OR IGNORE INTO forced_channels (channel_username, channel_link, is_active, added_at, added_by) VALUES(?,?,1,?,?)", 
                                (username, link, now, added_by))
         await self.conn.commit()
     
@@ -688,7 +697,7 @@ class Database:
         await self.conn.commit()
     
     async def get_forced_channels(self):
-        async with self.conn.execute("SELECT id,channel_username,channel_link FROM forced_channels WHERE is_active=1") as c:
+        async with self.conn.execute("SELECT id, channel_username, channel_link FROM forced_channels WHERE is_active=1") as c:
             return await c.fetchall()
     
     async def get_all_forced_channels(self):
@@ -696,7 +705,7 @@ class Database:
             return await c.fetchall()
     
     async def add_suggestion(self, uid, text):
-        await self.conn.execute("INSERT INTO suggestions (user_id,suggestion,status,created_at) VALUES(?,?,'pending',?)", 
+        await self.conn.execute("INSERT INTO suggestions (user_id, suggestion, status, created_at) VALUES(?,?,'pending',?)", 
                                (uid, text, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -705,7 +714,7 @@ class Database:
             return await c.fetchall()
     
     async def add_like(self, uid, mid):
-        await self.conn.execute("INSERT OR IGNORE INTO likes (user_id,media_id,created_at) VALUES(?,?,?)", 
+        await self.conn.execute("INSERT OR IGNORE INTO likes (user_id, media_id, created_at) VALUES(?,?,?)", 
                                (uid, mid, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -723,7 +732,7 @@ class Database:
             return await c.fetchone() is not None
     
     async def add_comment(self, uid, mid, username, text):
-        await self.conn.execute("INSERT INTO comments (user_id,media_id,username,text,created_at) VALUES(?,?,?,?,?)", 
+        await self.conn.execute("INSERT INTO comments (user_id, media_id, username, text, created_at) VALUES(?,?,?,?,?)", 
                                (uid, mid, username, text, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -733,7 +742,7 @@ class Database:
     
     async def add_group(self, gid, title="", username="", added_by=0):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT OR REPLACE INTO groups (id,title,username,added_by,added_at,is_active) VALUES(?,?,?,?,?,1)", 
+        await self.conn.execute("INSERT OR REPLACE INTO groups (id, title, username, added_by, added_at, is_active) VALUES(?,?,?,?,?,1)", 
                                (gid, title, username, added_by, now))
         await self.conn.commit()
     
@@ -743,25 +752,25 @@ class Database:
     
     async def add_watch_history(self, uid, mid, pnum):
         now = datetime.now().isoformat()
-        await self.conn.execute("INSERT INTO watch_history (user_id,media_id,part_number,watched_at) VALUES(?,?,?,?)", 
+        await self.conn.execute("INSERT INTO watch_history (user_id, media_id, part_number, watched_at) VALUES(?,?,?,?)", 
                                (uid, mid, pnum, now))
         await self.conn.execute("UPDATE users SET total_views=total_views+1 WHERE id=?", (uid,))
         await self.conn.commit()
     
     async def get_continue_watching(self, uid, limit=5):
-        async with self.conn.execute('''SELECT m.id,m.name,m.code,m.total_parts,MAX(w.part_number) as last_part 
+        async with self.conn.execute('''SELECT m.id, m.name, m.code, m.total_parts, MAX(w.part_number) as last_part 
                                       FROM watch_history w JOIN media m ON w.media_id=m.id 
                                       WHERE w.user_id=? AND m.total_parts>w.part_number 
                                       GROUP BY w.media_id ORDER BY MAX(w.watched_at) DESC LIMIT ?''', (uid, limit)) as c:
             return await c.fetchall()
     
     async def register_mini_app_user(self, uid, first_name="", last_name="", username=""):
-        await self.conn.execute("INSERT OR REPLACE INTO mini_app_users (id,first_name,last_name,username,registered_at) VALUES(?,?,?,?,?)", 
+        await self.conn.execute("INSERT OR REPLACE INTO mini_app_users (id, first_name, last_name, username, registered_at) VALUES(?,?,?,?,?)", 
                                (uid, first_name, last_name, username, datetime.now().isoformat()))
         await self.conn.commit()
     
     async def create_multi_part_session(self, uid, mid, media_name):
-        await self.conn.execute("INSERT INTO multi_part_sessions (user_id,media_id,media_name,parts_data,total_parts,created_at) VALUES(?,?,?,'[]',0,?)", 
+        await self.conn.execute("INSERT INTO multi_part_sessions (user_id, media_id, media_name, parts_data, total_parts, created_at) VALUES(?,?,?,'[]',0,?)", 
                                (uid, mid, media_name, datetime.now().isoformat()))
         await self.conn.commit()
     
@@ -771,7 +780,7 @@ class Database:
             return False
         parts = json.loads(session["parts_data"] or "[]")
         parts.append({"part_number": pnum, "file_id": file_id, "caption": caption})
-        await self.conn.execute("UPDATE multi_part_sessions SET parts_data=?,total_parts=? WHERE user_id=?", 
+        await self.conn.execute("UPDATE multi_part_sessions SET parts_data=?, total_parts=? WHERE user_id=?", 
                                (json.dumps(parts), len(parts), uid))
         await self.conn.commit()
         return True
@@ -1607,9 +1616,9 @@ async def cmd_start(message: Message):
             "💡 Botni @mention qilib ham ishlatishingiz mumkin!"
         )
         return
-    
-    user_is_vip = await db.is_user_vip(user_id)
-    
+
+    user_is_vip: bool = await db.is_vip(user_id)
+
     # Shaxsiy chat (davomi...)
     args = message.text.split()
     if len(args) > 1 and args[1].startswith("ref_"):
