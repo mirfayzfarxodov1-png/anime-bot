@@ -820,20 +820,20 @@ class Database:
 
 db = Database()   
     
-       async def add_media(self, code, name, genre, image_url="", description="", voice="", quality="720p", release_year=None, is_vip=False):
-        if await self.fetch_one("SELECT id FROM media WHERE code=?", (code,)):
-            return False, "Bu kod mavjud!"
-        if await self.fetch_one("SELECT id FROM media WHERE name=?", (name,)):
-            return False, "Bu nom mavjud!"
-        now = datetime.now().isoformat()
-        await self.conn.execute('''INSERT INTO media (code,name,genre,image_url,description,voice,quality,release_year,is_vip,created_at,updated_at) 
-                                 VALUES(?,?,?,?,?,?,?,?,?,?,?)''', 
-                               (code, name, genre, image_url, description, voice, quality, release_year, 1 if is_vip else 0, now, now))
-        await self.conn.commit()
-        today = datetime.now().strftime("%Y-%m-%d")
-        await self.conn.execute("UPDATE daily_stats SET new_media=new_media+1 WHERE date=?", (today,))
-        await self.conn.commit()
-        return True, await self.get_last_insert_id()
+async def add_media(self, code, name, genre, image_url="", description="", voice="", quality="720p", release_year=None, is_vip=False):
+    if await self.fetch_one("SELECT id FROM media WHERE code=?", (code,)):
+        return False, "Bu kod mavjud!"
+    if await self.fetch_one("SELECT id FROM media WHERE name=?", (name,)):
+        return False, "Bu nom mavjud!"
+    now = datetime.now().isoformat()
+    await self.conn.execute('''INSERT INTO media (code,name,genre,image_url,description,voice,quality,release_year,is_vip,created_at,updated_at) 
+                             VALUES(?,?,?,?,?,?,?,?,?,?,?)''', 
+                           (code, name, genre, image_url, description, voice, quality, release_year, 1 if is_vip else 0, now, now))
+    await self.conn.commit()
+    today = datetime.now().strftime("%Y-%m-%d")
+    await self.conn.execute("UPDATE daily_stats SET new_media=new_media+1 WHERE date=?", (today,))
+    await self.conn.commit()
+    return True, await self.get_last_insert_id()
     
     async def get_media_by_code(self, code):
         async with self.conn.execute("SELECT * FROM media WHERE code=?", (code,)) as c:
@@ -1607,6 +1607,8 @@ async def cmd_start(message: Message):
             "💡 Botni @mention qilib ham ishlatishingiz mumkin!"
         )
         return
+    
+    user_is_vip = await db.is_user_vip(user_id)
     
     # Shaxsiy chat (davomi...)
     args = message.text.split()
