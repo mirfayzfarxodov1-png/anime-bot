@@ -65,7 +65,7 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "@AniComplex_Rasmiy_bot")
 # Mini App sozlamalari
 MINI_APP_PORT = int(os.getenv("MINI_APP_PORT", "8080"))
 MINI_APP_HOST = os.getenv("MINI_APP_HOST", "0.0.0.0")
-MINI_APP_URL = os.getenv("MINI_APP_URL", "https://anime-bot-zxh9.onrender.com")
+MINI_APP_URL = os.getenv("MINI_APP_URL", "https://anime-bot-qagi.onrender.com")
 
 # ================= LOGGING =================
 logging.basicConfig(
