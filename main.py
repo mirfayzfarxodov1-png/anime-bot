@@ -39,7 +39,7 @@ except ImportError as e:
 load_dotenv()
 
 # ================= KONFIGURATSIYA =================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8331186676:AAFXLtBCy96UZ0VjVyL-KRUzzPzSLknjKlQ")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8671104468:AAGHoFutCVZ2gKJeuPXbyu4mbxP85FbQ9ck")
 ADMINS_STR = os.getenv("ADMINS", "5675087151,8404514882")
 ADMINS = [int(x.strip()) for x in ADMINS_STR.split(",") if x.strip().isdigit()]
 MAIN_CHANNEL = os.getenv("MAIN_CHANNEL", "@AniComplex_Rasmiy")
