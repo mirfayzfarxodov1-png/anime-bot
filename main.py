@@ -5315,7 +5315,7 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 
 <script>
 // ============================================ //
-// 1. TELEGRAM WEBAPP INIT (2301-2350)         //
+// 1. TELEGRAM WEBAPP INIT
 // ============================================ //
 const tg = window.Telegram.WebApp;
 tg.ready();
@@ -5323,10 +5323,11 @@ tg.expand();
 tg.enableClosingConfirmation();
 
 // ============================================ //
-// 2. PARTICLES GENERATION (2351-2400)         //
+// 2. PARTICLES GENERATION
 // ============================================ //
 function generateParticles() {
     const container = document.getElementById('particles');
+    if (!container) return;
     for (let i = 0; i < 80; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
@@ -5349,7 +5350,7 @@ function generateParticles() {
 generateParticles();
 
 // ============================================ //
-// 3. GLOBAL VARIABLES (2401-2450)             //
+// 3. GLOBAL VARIABLES
 // ============================================ //
 let currentUser = null;
 let currentMedia = null;
@@ -5362,7 +5363,7 @@ let favorites = [];
 let notifications = [];
 
 // ============================================ //
-// 4. LOCAL STORAGE FUNCTIONS (2451-2500)      //
+// 4. LOCAL STORAGE FUNCTIONS
 // ============================================ //
 function saveToLocalStorage(key, data) {
     try {
@@ -5381,30 +5382,14 @@ function loadFromLocalStorage(key) {
     }
 }
 
-function saveUserData() {
-    if (currentUser) {
-        saveToLocalStorage('user', currentUser);
-    }
-}
-
-function loadUserData() {
-    const user = loadFromLocalStorage('user');
-    if (user) {
-        currentUser = user;
-    }
-}
-
 // ============================================ //
-// 5. AUTHENTICATION FUNCTIONS (2501-2600)     //
+// 5. AUTHENTICATION FUNCTIONS (TO'G'RILANGAN)
 // ============================================ //
 function checkAuth() {
-    loadUserData();
-    if (currentUser && currentUser.id) {
-        document.getElementById('authSection').classList.add('hidden');
-        document.getElementById('mainSection').classList.remove('hidden');
-        document.getElementById('bottomNav').classList.remove('hidden');
-        document.getElementById('userBadge').classList.remove('hidden');
-        document.getElementById('userBadge').innerHTML = `👤 ${currentUser.first_name || 'User'}`;
+    const user = loadFromLocalStorage('user');
+    if (user && user.id) {
+        currentUser = user;
+        showMainUI();
         loadMedia();
         loadUserPreferences();
     }
@@ -5439,51 +5424,7 @@ function register() {
     };
     
     // LocalStorage ga saqlash
-    localStorage.setItem('anicomplex_user', JSON.stringify(currentUser));
-    
-    // API ga yuborish (xatolikni inobatga olmaslik kerak)
-    fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentUser)
-    }).catch(err => console.log('API register error:', err));
-    
-    showToast(`✅ Xush kelibsiz, ${firstName}!`);
-    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    
-    // Elementlarni ko'rsatish/yashirish
-    const authSection = document.getElementById('authSection');
-    const mainSection = document.getElementById('mainSection');
-    const bottomNav = document.getElementById('bottomNav');
-    const userBadge = document.getElementById('userBadge');
-    
-    if (authSection) authSection.classList.add('hidden');
-    if (mainSection) mainSection.classList.remove('hidden');
-    if (bottomNav) bottomNav.classList.remove('hidden');
-    if (userBadge) {
-        userBadge.classList.remove('hidden');
-        userBadge.innerHTML = `👤 ${firstName}`;
-    }
-    
-    // Sevimlilarni yuklash
-    try {
-        const fav = localStorage.getItem('anicomplex_favorites');
-        if (fav) favorites = JSON.parse(fav);
-    } catch(e) {
-        favorites = [];
-    }
-    
-    // Media yuklash
-    if (typeof loadMedia === 'function') {
-        loadMedia();
-    }
-};
-    
-    console.log("Current user:", currentUser);
-    
-    // LocalStorage ga saqlash
-    localStorage.setItem('anicomplex_user', JSON.stringify(currentUser));
-    console.log("✅ Saved to localStorage");
+    saveToLocalStorage('user', currentUser);
     
     // API ga yuborish
     fetch('/api/register', {
@@ -5493,35 +5434,29 @@ function register() {
     }).catch(err => console.log('API register error:', err));
     
     showToast(`✅ Xush kelibsiz, ${firstName}!`);
-    tg.HapticFeedback.notificationOccurred('success');
+    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     
-    // Elementlarni ko'rsatish/yashirish
+    // UI ni ko'rsatish
+    showMainUI();
+    
+    // Media yuklash
+    loadMedia();
+    console.log("✅ Register finished successfully!");
+}
+
+function showMainUI() {
     const authSection = document.getElementById('authSection');
     const mainSection = document.getElementById('mainSection');
     const bottomNav = document.getElementById('bottomNav');
     const userBadge = document.getElementById('userBadge');
-    
-    console.log("Hiding auth, showing main...");
     
     if (authSection) authSection.classList.add('hidden');
     if (mainSection) mainSection.classList.remove('hidden');
     if (bottomNav) bottomNav.classList.remove('hidden');
     if (userBadge) {
         userBadge.classList.remove('hidden');
-        userBadge.innerHTML = `👤 ${firstName}`;
+        userBadge.innerHTML = `👤 ${currentUser?.first_name || 'User'}`;
     }
-    
-    // Sevimlilarni yuklash
-    try {
-        const fav = localStorage.getItem('anicomplex_favorites');
-        if (fav) favorites = JSON.parse(fav);
-    } catch(e) {
-        favorites = [];
-    }
-    
-    // Media yuklash
-    loadMedia();
-    console.log("✅ Register finished successfully!");
 }
 
 function loadUserPreferences() {
@@ -5549,7 +5484,7 @@ function addToWatchHistory(mediaId, partNumber) {
 }
 
 // ============================================ //
-// 6. TOAST NOTIFICATION (2601-2650)           //
+// 6. TOAST NOTIFICATION
 // ============================================ //
 function showToast(message, isError = false, duration = 2500) {
     const existingToast = document.querySelector('.toast');
@@ -5568,7 +5503,7 @@ function showToast(message, isError = false, duration = 2500) {
 }
 
 // ============================================ //
-// 7. MEDIA LOADING FROM BOT (2651-2750)       //
+// 7. MEDIA LOADING FROM BOT
 // ============================================ //
 async function loadMedia() {
     const grid = document.getElementById('mediaGrid');
@@ -5590,7 +5525,6 @@ async function loadMedia() {
     }
     
     try {
-        // Botdan media olish
         const response = await fetch('/api/media');
         const data = await response.json();
         
@@ -5633,7 +5567,7 @@ function showEmptyState() {
 }
 
 // ============================================ //
-// 8. RENDER MEDIA (2751-2850)                 //
+// 8. RENDER MEDIA
 // ============================================ //
 function renderMedia(mediaList) {
     const grid = document.getElementById('mediaGrid');
@@ -5721,11 +5655,11 @@ function loadTab(type) {
     }
     
     renderMedia(filtered);
-    tg.HapticFeedback.impactOccurred('light');
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 }
 
 // ============================================ //
-// 9. SEARCH FUNCTIONS (2851-2900)             //
+// 9. SEARCH FUNCTIONS
 // ============================================ //
 function searchAnime() {
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -5755,7 +5689,7 @@ function scrollToSearch() {
 }
 
 // ============================================ //
-// 10. PLAYER FUNCTIONS (2901-3050)            //
+// 10. PLAYER FUNCTIONS
 // ============================================ //
 function openPlayer(media) {
     currentMedia = media;
@@ -5805,7 +5739,7 @@ function openPlayer(media) {
     // Add to watch history
     addToWatchHistory(media.id, 1);
     
-    tg.HapticFeedback.impactOccurred('medium');
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -5821,24 +5755,18 @@ function loadPart(partNum) {
     const part = parts.find(p => p.part_number === partNum);
     
     if (part && part.file_id) {
-        // Telegram video ID dan URL olish - API orqali
         video.src = `/api/video/${part.file_id}`;
         video.load();
-        // Videoni avtomatik o'ynatishga urinish
         video.play().catch(e => console.log('Auto-play error:', e));
         showToast(`📺 ${partNum}-qism yuklanmoqda...`);
     } else {
-        // Demo video (agar video bazada bo'lmasa)
         video.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
         video.load();
         showToast(`⚠️ ${partNum}-qism uchun video topilmadi, demo ko'rsatilmoqda`);
     }
-}
     
-    video.load();
     addToWatchHistory(currentMedia.id, partNum);
     
-    // Report to bot
     fetch('/api/watch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -5862,11 +5790,11 @@ function closePlayer() {
     video.src = '';
     
     loadMedia();
-    tg.HapticFeedback.impactOccurred('light');
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 }
 
 // ============================================ //
-// 11. LIKES FUNCTIONS (3051-3120)             //
+// 11. LIKES FUNCTIONS
 // ============================================ //
 function toggleLike() {
     isLiked = !isLiked;
@@ -5907,11 +5835,11 @@ function toggleLike() {
         })
     }).catch(() => {});
     
-    tg.HapticFeedback.notificationOccurred('success');
+    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 }
 
 // ============================================ //
-// 12. COMMENTS FUNCTIONS (3121-3200)          //
+// 12. COMMENTS FUNCTIONS
 // ============================================ //
 function toggleComments() {
     const commentsSection = document.getElementById('commentsSection');
@@ -5992,7 +5920,7 @@ function addComment() {
         })
     }).catch(() => {});
     
-    tg.HapticFeedback.notificationOccurred('success');
+    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     showToast("✅ Izoh qo'shildi!");
 }
 
@@ -6007,7 +5935,7 @@ function shareMedia() {
 }
 
 // ============================================ //
-// 13. UTILITY FUNCTIONS (3201-3280)           //
+// 13. UTILITY FUNCTIONS
 // ============================================ //
 function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -6068,7 +5996,7 @@ function showProfile() {
 }
 
 // ============================================ //
-// 14. AUTO REFRESH (3281-3320)                //
+// 14. AUTO REFRESH
 // ============================================ //
 let refreshInterval = setInterval(() => {
     if (!document.getElementById('playerSection').classList.contains('hidden')) return;
@@ -6078,7 +6006,7 @@ let refreshInterval = setInterval(() => {
 }, 30000);
 
 // ============================================ //
-// 15. BACK BUTTON HANDLER (3321-3350)         //
+// 15. BACK BUTTON HANDLER
 // ============================================ //
 if (tg.BackButton) {
     tg.BackButton.onClick(() => {
@@ -6093,7 +6021,7 @@ if (tg.BackButton) {
 }
 
 // ============================================ //
-// 16. INITIALIZE APP (3351-3380)              //
+// 16. INITIALIZE APP
 // ============================================ //
 checkAuth();
 
