@@ -3924,11 +3924,11 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AniComplex | Anime World Premium</title>
+    <title>AniComplex | Cyber Anime Studio 2077</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         /* ============================================ */
-        /* 1. RESET VA ASOSIY STILLAR (1-100 qator)    */
+        /* 1. ROOT VARIABLES & RESET (1-200)           */
         /* ============================================ */
         * {
             margin: 0;
@@ -3938,749 +3938,563 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         :root {
-            --primary: #e74c3c;
-            --primary-dark: #c0392b;
-            --secondary: #f39c12;
-            --dark: #0a0a0f;
-            --dark-card: rgba(20,20,35,0.85);
-            --glass-border: rgba(231,76,60,0.3);
-            --text-primary: #ffffff;
-            --text-secondary: rgba(255,255,255,0.7);
-            --text-muted: rgba(255,255,255,0.5);
-            --success: #27ae60;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --info: #3498db;
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-purple: #9d00ff;
+            --neon-yellow: #ffea00;
+            --neon-green: #00ff88;
+            --dark-bg: #0a0a0f;
+            --dark-card: rgba(10, 10, 15, 0.85);
+            --cyber-grid: rgba(0, 243, 255, 0.08);
+            --glow-cyan: 0 0 10px #00f3ff, 0 0 20px #00f3ff, 0 0 40px rgba(0,243,255,0.5);
+            --glow-pink: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 40px rgba(255,0,255,0.5);
+            --glow-purple: 0 0 10px #9d00ff, 0 0 20px #9d00ff, 0 0 40px rgba(157,0,255,0.5);
             --transition-fast: 0.2s ease;
             --transition-normal: 0.3s ease;
             --transition-slow: 0.5s ease;
-            --border-radius-sm: 12px;
-            --border-radius-md: 18px;
-            --border-radius-lg: 25px;
-            --border-radius-xl: 35px;
-            --border-radius-xxl: 60px;
-            --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
-            --shadow-md: 0 4px 15px rgba(0,0,0,0.2);
-            --shadow-lg: 0 8px 30px rgba(0,0,0,0.3);
-            --shadow-glow: 0 0 20px rgba(231,76,60,0.3);
-            --shadow-glow-strong: 0 0 40px rgba(231,76,60,0.6);
         }
 
         body {
-            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: var(--dark);
-            color: var(--text-primary);
+            font-family: 'Courier New', 'Share Tech Mono', 'Fira Code', monospace;
+            background: var(--dark-bg);
+            color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         /* ============================================ */
-        /* 2. FON VE ZARARCHALAR (101-250 qator)       */
+        /* 2. CYBER BACKGROUND & GRID (201-400)        */
         /* ============================================ */
-        .bg-gradient {
+        .cyber-bg {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            background-image: 
+                linear-gradient(var(--cyber-grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--cyber-grid) 1px, transparent 1px);
+            background-size: 40px 40px;
             z-index: 0;
-            background: radial-gradient(circle at 20% 30%, #1a1a2e, #0a0a0f);
         }
 
-        .bg-gradient::before {
+        .cyber-bg::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cGF0aCBmaWxsPSIjZTc0YzNjIiBmaWxsLW9wYWNpdHk9IjAuMDUiIGQ9Ik0wIDBoNDB2NDBIMHoiLz48L3N2Zz4=');
-            background-repeat: repeat;
-            opacity: 0.3;
-            pointer-events: none;
+            background: radial-gradient(circle at 50% 50%, rgba(0,243,255,0.08) 0%, transparent 70%);
+            animation: pulseGlow 4s ease-in-out infinite;
         }
 
-        .particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        .particle {
-            position: absolute;
-            border-radius: 50%;
-            animation: floatParticle linear infinite;
-        }
-
-        @keyframes floatParticle {
-            0% {
-                transform: translateY(100vh) scale(0);
-                opacity: 0;
-            }
-            10% {
-                opacity: 0.8;
-            }
-            90% {
-                opacity: 0.8;
-            }
-            100% {
-                transform: translateY(-10vh) scale(1);
-                opacity: 0;
-            }
-        }
-
-        /* ============================================ */
-        /* 3. GLASS MORPHISM KOMPONENTLARI (251-400)    */
-        /* ============================================ */
-        .glass-card {
-            background: var(--dark-card);
-            backdrop-filter: blur(20px);
-            border-radius: var(--border-radius-lg);
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--shadow-md);
-            transition: all var(--transition-normal);
-        }
-
-        .glass-card:hover {
-            border-color: var(--primary);
-            box-shadow: var(--shadow-glow);
-            transform: translateY(-2px);
-        }
-
-        .glass-card-dark {
-            background: rgba(10,10,20,0.8);
-            backdrop-filter: blur(15px);
-            border-radius: var(--border-radius-md);
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        /* ============================================ */
-        /* 4. ANIMATSIYALAR (401-550)                  */
-        /* ============================================ */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes fadeInRight {
-            from {
-                opacity: 0;
-                transform: translateX(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes scaleIn {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: var(--shadow-glow);
-            }
-            50% {
-                transform: scale(1.02);
-                box-shadow: var(--shadow-glow-strong);
-            }
-        }
-
-        @keyframes pulse-fast {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: -200% 0;
-            }
-            100% {
-                background-position: 200% 0;
-            }
-        }
-
-        @keyframes spin {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes spin-slow {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-8px);
-            }
-        }
-
-        @keyframes bounce-soft {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-4px);
-            }
-        }
-
-        @keyframes heartBeat {
-            0%, 100% {
-                transform: scale(1);
-            }
-            25% {
-                transform: scale(1.3);
-            }
-            50% {
-                transform: scale(1.1);
-            }
-            75% {
-                transform: scale(1.2);
-            }
-        }
-
-        @keyframes shake {
-            0%, 100% {
-                transform: translateX(0);
-            }
-            25% {
-                transform: translateX(-5px);
-            }
-            75% {
-                transform: translateX(5px);
-            }
-        }
-
-        @keyframes glow {
-            0%, 100% {
-                box-shadow: var(--shadow-glow);
-            }
-            50% {
-                box-shadow: var(--shadow-glow-strong);
-            }
-        }
-
-        @keyframes rotate360 {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes ripple {
-            0% {
-                transform: scale(0);
-                opacity: 0.6;
-            }
-            100% {
-                transform: scale(3);
-                opacity: 0;
-            }
-        }
-
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0px);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-
-        @keyframes float-slow {
-            0%, 100% {
-                transform: translateY(0px);
-            }
-            50% {
-                transform: translateY(-15px);
-            }
-        }
-
-        @keyframes zoomIn {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        @keyframes zoomOut {
-            from {
-                opacity: 1;
-                transform: scale(1);
-            }
-            to {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-        }
-
-        .animate-fade-in { animation: fadeIn 0.5s ease forwards; }
-        .animate-fade-in-up { animation: fadeInUp 0.6s ease forwards; }
-        .animate-fade-in-down { animation: fadeInDown 0.6s ease forwards; }
-        .animate-fade-in-left { animation: fadeInLeft 0.5s ease forwards; }
-        .animate-fade-in-right { animation: fadeInRight 0.5s ease forwards; }
-        .animate-slide-up { animation: slideUp 0.6s ease forwards; }
-        .animate-slide-down { animation: slideDown 0.6s ease forwards; }
-        .animate-scale-in { animation: scaleIn 0.4s ease forwards; }
-        .animate-pulse { animation: pulse 2s infinite; }
-        .animate-pulse-fast { animation: pulse-fast 1s infinite; }
-        .animate-bounce { animation: bounce 2s infinite; }
-        .animate-bounce-soft { animation: bounce-soft 1.5s infinite; }
-        .animate-spin { animation: spin 1s linear infinite; }
-        .animate-spin-slow { animation: spin-slow 3s linear infinite; }
-        .animate-float { animation: float 3s ease-in-out infinite; }
-        .animate-float-slow { animation: float-slow 4s ease-in-out infinite; }
-        .animate-glow { animation: glow 2s infinite; }
-        .animate-shimmer { animation: shimmer 2s infinite; }
-
-        /* ============================================ */
-        /* 5. CONTAINER VA LAYOUT (551-650)            */
-        /* ============================================ */
-        .container {
-            position: relative;
-            z-index: 2;
-            max-width: 550px;
-            margin: 0 auto;
-            padding: 20px 16px 90px;
-            min-height: 100vh;
-        }
-
-        /* ============================================ */
-        /* 6. HEADER STILLARI (651-750)                */
-        /* ============================================ */
-        .header {
-            text-align: center;
-            padding: 30px 20px;
-            margin-bottom: 25px;
-            position: relative;
-            overflow: hidden;
-            animation: fadeInUp 0.6s ease;
-        }
-
-        .header::before {
+        .cyber-bg::after {
             content: '';
             position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
-            background: linear-gradient(45deg, transparent, rgba(231,76,60,0.08), transparent);
-            animation: rotate360 12s linear infinite;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 20px,
+                rgba(0,243,255,0.03) 20px,
+                rgba(0,243,255,0.03) 40px
+            );
+            animation: scanlines 8s linear infinite;
             pointer-events: none;
         }
 
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 10%;
-            width: 80%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), var(--primary), transparent);
-            border-radius: 2px;
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
         }
 
-        .header h1 {
-            font-size: 44px;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--primary));
-            background-size: 200% auto;
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: shimmer 3s linear infinite;
-            position: relative;
-            z-index: 1;
-            letter-spacing: -0.5px;
-        }
-
-        .header .subtitle {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-top: 8px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: linear-gradient(135deg, var(--success), #2ecc71);
-            padding: 6px 16px;
-            border-radius: var(--border-radius-xxl);
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 12px;
-            animation: bounce 2s infinite;
+        @keyframes scanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(100%); }
         }
 
         /* ============================================ */
-        /* 7. AUTH FORM STILLARI (751-850)             */
+        /* 3. NEON ANIMATIONS (401-600)                */
         /* ============================================ */
-        .auth-card {
-            padding: 40px 28px;
+        @keyframes neonPulse {
+            0%, 100% { text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff; }
+            50% { text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff; }
+        }
+
+        @keyframes neonPulseFast {
+            0%, 100% { text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff; }
+            50% { text-shadow: 0 0 15px #00f3ff, 0 0 25px #00f3ff; }
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff; }
+            50% { box-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff; }
+        }
+
+        @keyframes flyAnimation {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+            30% { transform: translate(-80px, -150px) scale(1.3) rotate(120deg); opacity: 0.9; }
+            70% { transform: translate(40px, -300px) scale(1.6) rotate(240deg); opacity: 0.8; }
+            100% { transform: translate(0, -500px) scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes transformIn {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+            25% { transform: scale(1.5) rotate(90deg); opacity: 0.8; filter: blur(5px); }
+            50% { transform: scale(2) rotate(180deg); opacity: 0.5; filter: blur(10px); }
+            75% { transform: scale(1.5) rotate(270deg); opacity: 0.3; filter: blur(15px); }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; filter: blur(20px); }
+        }
+
+        @keyframes transformOut {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; filter: blur(20px); }
+            25% { transform: scale(0.5) rotate(-135deg); opacity: 0.3; filter: blur(15px); }
+            50% { transform: scale(0.8) rotate(-90deg); opacity: 0.6; filter: blur(10px); }
+            75% { transform: scale(0.95) rotate(-45deg); opacity: 0.8; filter: blur(5px); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+        }
+
+        @keyframes glitchEffect {
+            0%, 100% { transform: translate(0); opacity: 1; }
+            10% { transform: translate(-3px, 2px); opacity: 0.9; }
+            20% { transform: translate(3px, -2px); opacity: 0.8; }
+            30% { transform: translate(-2px, 3px); opacity: 0.9; }
+            40% { transform: translate(2px, -3px); opacity: 0.8; }
+            50% { transform: translate(-1px, 1px); opacity: 0.95; }
+            60% { transform: translate(1px, -1px); opacity: 0.9; }
+            70% { transform: translate(-2px, 0); opacity: 0.85; }
+            80% { transform: translate(2px, 0); opacity: 0.9; }
+            90% { transform: translate(0, 2px); opacity: 0.95; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideLeft {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideRight {
+            from { opacity: 0; transform: translateX(-50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes scaleOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.8); }
+        }
+
+        @keyframes rotateIn {
+            from { opacity: 0; transform: rotate(-180deg) scale(0.5); }
+            to { opacity: 1; transform: rotate(0) scale(1); }
+        }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 0.9; transform: scale(1.05); }
+            70% { transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        @keyframes ripple {
+            0% { transform: scale(0); opacity: 0.6; }
+            100% { transform: scale(4); opacity: 0; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes ping {
+            0% { transform: scale(1); opacity: 1; }
+            75%, 100% { transform: scale(2); opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        /* ============================================ */
+        /* 4. ANIMATION CLASSES (601-800)              */
+        /* ============================================ */
+        .animate-neon { animation: neonPulse 2s infinite; }
+        .animate-neon-fast { animation: neonPulseFast 1s infinite; }
+        .animate-glow { animation: glowPulse 2s infinite; }
+        .animate-glitch { animation: glitchEffect 0.3s infinite; }
+        .animate-slide-up { animation: slideUp 0.5s ease forwards; }
+        .animate-slide-down { animation: slideDown 0.5s ease forwards; }
+        .animate-slide-left { animation: slideLeft 0.5s ease forwards; }
+        .animate-slide-right { animation: slideRight 0.5s ease forwards; }
+        .animate-scale-in { animation: scaleIn 0.4s ease forwards; }
+        .animate-scale-out { animation: scaleOut 0.4s ease forwards; }
+        .animate-rotate-in { animation: rotateIn 0.5s ease forwards; }
+        .animate-bounce-in { animation: bounceIn 0.6s ease forwards; }
+        .animate-shake { animation: shake 0.5s ease; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        .animate-ping { animation: ping 1s ease-out infinite; }
+        .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
+        .animate-fade-out { animation: fadeOut 0.3s ease forwards; }
+        .animate-blink { animation: blink 1s step-end infinite; }
+
+        /* ============================================ */
+        /* 5. CONTAINER & LAYOUT (801-1000)            */
+        /* ============================================ */
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px 16px 90px;
+            min-height: 100vh;
+        }
+
+        /* ============================================ */
+        /* 6. SPLASH SCREEN COMPONENTS (1001-1200)     */
+        /* ============================================ */
+        .splash-screen {
             text-align: center;
-            animation: fadeInUp 0.7s ease;
-        }
-
-        .auth-card h2 {
-            font-size: 28px;
-            margin-bottom: 25px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .auth-card .auth-icon {
-            font-size: 60px;
-            margin-bottom: 15px;
-            animation: bounce 2s infinite;
-        }
-
-        .auth-input {
-            width: 100%;
-            padding: 16px 20px;
-            margin: 12px 0;
-            background: rgba(255,255,255,0.08);
-            border: 1.5px solid rgba(255,255,255,0.12);
-            border-radius: var(--border-radius-xxl);
-            color: var(--text-primary);
-            font-size: 15px;
-            transition: all var(--transition-normal);
-            outline: none;
-        }
-
-        .auth-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 20px rgba(231,76,60,0.3);
-            transform: scale(1.02);
-        }
-
-        .auth-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        /* ============================================ */
-        /* 8. BUTTONLAR (851-950)                      */
-        /* ============================================ */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px 24px;
-            border: none;
-            border-radius: var(--border-radius-xxl);
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-normal);
-            text-decoration: none;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-glow);
-        }
-
-        .btn-primary:active {
-            transform: scale(0.96);
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            color: var(--text-primary);
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-
-        .btn-secondary:active {
-            transform: scale(0.96);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1.5px solid var(--primary);
-            color: var(--primary);
-        }
-
-        .btn-outline:active {
-            transform: scale(0.96);
-        }
-
-        .btn-glow {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border: none;
-            border-radius: var(--border-radius-xxl);
-            padding: 14px 28px;
-            color: white;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            width: 100%;
-            animation: pulse 2s infinite;
-            transition: all var(--transition-normal);
-        }
-
-        .btn-glow:active {
-            transform: scale(0.96);
-        }
-
-        .btn-block {
-            width: 100%;
-        }
-
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 13px;
-        }
-
-        .btn-lg {
-            padding: 16px 32px;
-            font-size: 18px;
-        }
-
-        .search-btn {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border: none;
-            border-radius: var(--border-radius-xxl);
-            padding: 12px 28px;
-            color: white;
-            cursor: pointer;
-            transition: all var(--transition-normal);
-        }
-
-        .search-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* ============================================ */
-        /* 9. SEARCH BAR STILLARI (951-1050)           */
-        /* ============================================ */
-        .search-container {
-            margin-bottom: 20px;
-            animation: fadeInUp 0.6s ease;
-        }
-
-        .search-bar {
-            display: flex;
-            gap: 10px;
-            background: rgba(255,255,255,0.08);
-            border-radius: var(--border-radius-xxl);
-            padding: 6px;
-            border: 1px solid var(--glass-border);
-            transition: all var(--transition-normal);
-        }
-
-        .search-bar:focus-within {
-            border-color: var(--primary);
-            box-shadow: var(--shadow-glow);
-            transform: scale(1.01);
-        }
-
-        .search-bar input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 14px 20px;
-            color: var(--text-primary);
-            font-size: 15px;
-            outline: none;
-        }
-
-        .search-bar input::placeholder {
-            color: var(--text-muted);
-        }
-
-        /* ============================================ */
-        /* 10. TABS STILLARI (1051-1150)               */
-        /* ============================================ */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0 25px;
-            overflow-x: auto;
-            padding-bottom: 5px;
-            animation: fadeInUp 0.7s ease;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-
-        .tabs::-webkit-scrollbar {
-            display: none;
-        }
-
-        .tab {
-            padding: 10px 22px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: var(--border-radius-xxl);
-            color: var(--text-secondary);
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all var(--transition-normal);
-        }
-
-        .tab:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-1px);
-        }
-
-        .tab.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            border-color: transparent;
-            animation: pulse 2s infinite;
-        }
-
-        /* ============================================ */
-        /* 11. MEDIA GRID VA KARTALAR (1151-1300)      */
-        /* ============================================ */
-        .media-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            margin: 20px 0 30px;
-        }
-
-        .media-card {
-            background: linear-gradient(135deg, rgba(25,25,40,0.85), rgba(15,15,25,0.9));
-            backdrop-filter: blur(12px);
-            border-radius: var(--border-radius-md);
-            overflow: hidden;
-            border: 1px solid rgba(231,76,60,0.2);
-            cursor: pointer;
-            transition: all var(--transition-normal);
-            display: flex;
-            animation: fadeInUp 0.5s ease;
+            animation: slideUp 0.8s ease;
             position: relative;
         }
 
-        .media-card::before {
-            content: '';
+        .cyber-logo {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: 8px;
+            margin-bottom: 20px;
+            animation: neonPulse 2s infinite;
+            cursor: pointer;
+            position: relative;
+            display: inline-block;
+        }
+
+        .cyber-logo::before {
+            content: 'AniComplex';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, transparent, rgba(231,76,60,0.05), transparent);
-            opacity: 0;
-            transition: opacity var(--transition-normal);
-            pointer-events: none;
+            background: linear-gradient(135deg, #00f3ff, #ff00ff, #9d00ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glitchEffect 0.3s infinite;
+            z-index: -1;
         }
 
-        .media-card:hover::before {
-            opacity: 1;
+        .cyber-logo::after {
+            content: 'AniComplex';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ff00ff, #00f3ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glitchEffect 0.3s infinite reverse;
+            z-index: -2;
+        }
+
+        .cyber-sub {
+            font-size: 12px;
+            color: var(--neon-cyan);
+            letter-spacing: 4px;
+            margin-top: 10px;
+            opacity: 0.8;
+            animation: blink 2s infinite;
+        }
+
+        .version-badge {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: rgba(0,243,255,0.5);
+            letter-spacing: 2px;
+        }
+
+        /* ============================================ */
+        /* 7. CYBER BUTTON STYLES (1201-1400)          */
+        /* ============================================ */
+        .cyber-btn {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            border: none;
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            margin-top: 30px;
+            border-radius: 0;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+        }
+
+        .cyber-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .cyber-btn:hover::before {
+            left: 100%;
+        }
+
+        .cyber-btn:hover {
+            transform: scale(1.02);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .cyber-btn:active {
+            transform: scale(0.98);
+        }
+
+        .cyber-btn-secondary {
+            background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+        }
+
+        .cyber-btn-success {
+            background: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
+        }
+
+        /* ============================================ */
+        /* 8. FLYING TELEGRAM LOGO (1401-1500)         */
+        /* ============================================ */
+        .telegram-fly {
+            position: fixed;
+            font-size: 60px;
+            z-index: 1000;
+            pointer-events: none;
+            animation: flyAnimation 0.8s ease forwards;
+            filter: drop-shadow(0 0 10px #00f3ff);
+        }
+
+        /* ============================================ */
+        /* 9. AUTH SECTION STYLES (1501-1700)          */
+        /* ============================================ */
+        .auth-section {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border: 2px solid var(--neon-cyan);
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            animation: transformOut 0.6s ease;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
+        }
+
+        .auth-section h2 {
+            font-size: 24px;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .cyber-input {
+            width: 100%;
+            padding: 14px 18px;
+            margin: 12px 0;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: monospace;
+        }
+
+        .cyber-input:focus {
+            outline: none;
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 15px var(--neon-pink);
+        }
+
+        .cyber-input::placeholder {
+            color: rgba(255,255,255,0.5);
+            font-family: monospace;
+        }
+
+        /* ============================================ */
+        /* 10. MAIN APP STYLES (1701-1900)             */
+        /* ============================================ */
+        .main-app {
+            width: 100%;
+            animation: transformOut 0.5s ease;
+        }
+
+        /* Search Bar */
+        .cyber-search {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .cyber-search input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--neon-cyan);
+            padding: 14px 18px;
+            color: #fff;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .cyber-search input:focus {
+            outline: none;
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 10px var(--neon-pink);
+        }
+
+        .cyber-search button {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            border: none;
+            padding: 0 25px;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .cyber-search button:hover {
+            transform: scale(1.02);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* ============================================ */
+        /* 11. TABS STYLES (1901-2100)                 */
+        /* ============================================ */
+        .cyber-tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+        }
+
+        .cyber-tabs::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .cyber-tabs::-webkit-scrollbar-track {
+            background: rgba(0,243,255,0.1);
+        }
+
+        .cyber-tabs::-webkit-scrollbar-thumb {
+            background: var(--neon-cyan);
+        }
+
+        .cyber-tab {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-cyan);
+            padding: 10px 20px;
+            color: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .cyber-tab:hover {
+            background: rgba(0,243,255,0.2);
+            transform: translateY(-2px);
+        }
+
+        .cyber-tab.active {
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+
+        /* ============================================ */
+        /* 12. MEDIA CARDS (2101-2400)                 */
+        /* ============================================ */
+        .media-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .media-card {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.08), rgba(157, 0, 255, 0.08));
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            animation: slideLeft 0.4s ease;
         }
 
         .media-card:hover {
-            transform: translateX(8px) scale(1.01);
-            border-color: var(--primary);
-            box-shadow: 0 8px 25px rgba(231,76,60,0.25);
+            transform: translateX(10px) scale(1.01);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
         }
 
         .media-card:active {
@@ -4688,19 +4502,18 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .media-card img {
-            width: 110px;
-            height: 150px;
+            width: 100px;
+            height: 140px;
             object-fit: cover;
-            flex-shrink: 0;
-            transition: transform var(--transition-normal);
+            border-radius: 8px;
+            transition: transform 0.3s ease;
         }
 
         .media-card:hover img {
-            transform: scale(1.05);
+            transform: scale(1.03);
         }
 
         .media-info {
-            padding: 14px;
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -4709,34 +4522,27 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 
         .media-title {
             font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 4px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
 
         .media-meta {
-            font-size: 12px;
-            color: var(--text-secondary);
+            font-size: 11px;
+            color: var(--neon-cyan);
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            gap: 12px;
         }
 
         .media-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+            display: inline-block;
             padding: 2px 8px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
+            background: rgba(255,0,255,0.2);
+            border-radius: 4px;
             font-size: 10px;
         }
 
         .rating-stars {
-            color: var(--secondary);
+            color: var(--neon-yellow);
             font-size: 11px;
             margin-top: 4px;
         }
@@ -4744,390 +4550,291 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         .media-stats {
             display: flex;
             gap: 12px;
-            margin-top: 6px;
             font-size: 11px;
-            color: var(--text-muted);
+            color: rgba(255,255,255,0.5);
+            margin-top: 5px;
         }
 
         /* ============================================ */
-        /* 12. PLAYER SECTION (1301-1450)              */
+        /* 13. PLAYER SECTION (2401-2700)              */
         /* ============================================ */
         .player-section {
-            background: linear-gradient(135deg, rgba(20,20,35,0.95), rgba(10,10,20,0.98));
-            backdrop-filter: blur(20px);
-            border-radius: var(--border-radius-lg);
-            padding: 18px;
-            animation: scaleIn 0.5s ease;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            animation: scaleIn 0.4s ease;
         }
 
         .player-section video {
             width: 100%;
-            border-radius: var(--border-radius-md);
+            border-radius: 10px;
             background: #000;
-            box-shadow: var(--shadow-md);
         }
 
         .player-title {
             font-size: 18px;
-            font-weight: 700;
             margin: 12px 0 8px;
             text-align: center;
+            letter-spacing: 2px;
         }
 
         .player-info {
             display: flex;
             justify-content: space-between;
-            margin: 10px 0;
             padding: 8px 12px;
-            background: rgba(0,0,0,0.3);
-            border-radius: var(--border-radius-sm);
+            background: rgba(0,243,255,0.1);
+            border-radius: 8px;
+            margin: 10px 0;
             font-size: 12px;
         }
 
-        /* ============================================ */
-        /* 13. QISM BUTTONLARI (1451-1550)             */
-        /* ============================================ */
         .part-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            margin: 18px 0;
+            gap: 8px;
+            margin: 15px 0;
         }
 
         .part-btn {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: var(--border-radius-sm);
-            padding: 10px 18px;
-            color: var(--text-primary);
-            font-size: 13px;
-            font-weight: 500;
+            background: rgba(0, 243, 255, 0.15);
+            border: 1px solid var(--neon-cyan);
+            padding: 8px 16px;
+            color: #fff;
             cursor: pointer;
-            transition: all var(--transition-fast);
+            transition: all 0.2s ease;
+            font-size: 13px;
+            border-radius: 5px;
         }
 
         .part-btn:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-1px);
+            background: rgba(0,243,255,0.3);
+            transform: translateY(-2px);
         }
 
         .part-btn.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-color: transparent;
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 15px var(--neon-cyan);
         }
 
         .part-btn:active {
-            transform: scale(0.94);
-        }
-
-        /* ============================================ */
-        /* 14. ACTION BUTTONLARI (1551-1650)           */
-        /* ============================================ */
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin: 18px 0;
-        }
-
-        .action-btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: var(--border-radius-xxl);
-            padding: 10px 22px;
-            color: var(--text-primary);
-            cursor: pointer;
-            transition: all var(--transition-normal);
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .action-btn:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-1px);
-        }
-
-        .action-btn:active {
             transform: scale(0.95);
         }
 
+        /* ============================================ */
+        /* 14. ACTION BUTTONS (2701-2900)              */
+        /* ============================================ */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .action-btn {
+            flex: 1;
+            background: rgba(0,243,255,0.1);
+            border: 1px solid var(--neon-cyan);
+            padding: 10px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .action-btn:hover {
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
         .action-btn.liked {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            animation: heartBeat 0.5s ease;
+            background: var(--neon-pink);
+            border-color: var(--neon-pink);
+            animation: bounceIn 0.5s ease;
         }
 
         /* ============================================ */
-        /* 15. COMMENTS SEKTSIYASI (1651-1780)         */
+        /* 15. COMMENTS SECTION (2901-3100)            */
         /* ============================================ */
         .comments-section {
-            margin: 18px 0;
-            background: rgba(0,0,0,0.3);
-            border-radius: var(--border-radius-md);
+            margin: 15px 0;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
             padding: 15px;
-            animation: slideUp 0.3s ease;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .comments-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .comments-count {
-            font-size: 13px;
-            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0,243,255,0.3);
         }
 
         .comment {
-            background: rgba(0,0,0,0.35);
-            border-radius: var(--border-radius-md);
-            padding: 12px;
-            margin: 10px 0;
-            animation: fadeInLeft 0.3s ease;
-            transition: all var(--transition-fast);
-        }
-
-        .comment:hover {
-            background: rgba(0,0,0,0.5);
-            transform: translateX(3px);
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+            animation: slideRight 0.3s ease;
         }
 
         .comment-header {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 6px;
-        }
-
-        .comment-avatar {
-            width: 28px;
-            height: 28px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             font-size: 12px;
         }
 
         .comment-user {
-            font-weight: 700;
-            color: var(--primary);
-            font-size: 13px;
+            color: var(--neon-cyan);
+            font-weight: bold;
         }
 
         .comment-time {
+            color: rgba(255,255,255,0.4);
             font-size: 10px;
-            color: var(--text-muted);
-            margin-left: auto;
         }
 
         .comment-text {
             font-size: 13px;
-            margin-top: 6px;
-            padding-left: 36px;
-            color: var(--text-secondary);
-            line-height: 1.4;
+            padding-left: 25px;
+            word-break: break-word;
         }
 
         .comment-input {
             display: flex;
-            gap: 10px;
-            margin-top: 18px;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .comment-input input {
             flex: 1;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: var(--border-radius-xxl);
-            padding: 12px 18px;
-            color: var(--text-primary);
-            font-size: 14px;
-            outline: none;
-            transition: all var(--transition-normal);
-        }
-
-        .comment-input input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 10px rgba(231,76,60,0.2);
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--neon-cyan);
+            padding: 10px;
+            color: #fff;
         }
 
         .comment-input button {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
             border: none;
-            border-radius: var(--border-radius-xxl);
-            padding: 12px 22px;
-            color: white;
-            font-weight: 600;
+            padding: 0 20px;
             cursor: pointer;
-            transition: all var(--transition-normal);
-        }
-
-        .comment-input button:active {
-            transform: scale(0.95);
         }
 
         /* ============================================ */
-        /* 16. LOADING SKELETON (1781-1880)            */
-        /* ============================================ */
-        .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: var(--border-radius-md);
-        }
-
-        .skeleton-card {
-            display: flex;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: var(--border-radius-md);
-            margin-bottom: 12px;
-        }
-
-        .skeleton-img {
-            width: 100px;
-            height: 140px;
-            border-radius: var(--border-radius-sm);
-        }
-
-        .skeleton-text {
-            height: 14px;
-            margin: 8px 0;
-            border-radius: 7px;
-        }
-
-        .skeleton-title {
-            height: 18px;
-            width: 70%;
-            margin-bottom: 12px;
-        }
-
-        /* ============================================ */
-        /* 17. EMPTY STATE (1881-1950)                 */
-        /* ============================================ */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: var(--border-radius-lg);
-            animation: fadeInUp 0.6s ease;
-        }
-
-        .empty-state .icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 2s infinite;
-        }
-
-        .empty-state h3 {
-            font-size: 20px;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        /* ============================================ */
-        /* 18. BOTTOM NAVIGATION (1951-2050)           */
+        /* 16. BOTTOM NAVIGATION (3101-3300)           */
         /* ============================================ */
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, rgba(15,15,25,0.98), rgba(10,10,20,0.98));
+            background: rgba(0, 0, 0, 0.98);
             backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(231,76,60,0.4);
-            padding: 10px 20px;
+            border-top: 1px solid var(--neon-cyan);
             display: flex;
             justify-content: space-around;
+            padding: 10px 16px;
             z-index: 100;
-            animation: slideUp 0.8s ease;
+            animation: slideUp 0.6s ease;
         }
 
         .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
             background: none;
             border: none;
-            color: var(--text-muted);
-            font-size: 11px;
+            color: #fff;
+            padding: 8px 16px;
             cursor: pointer;
-            padding: 8px 18px;
-            border-radius: var(--border-radius-xxl);
-            transition: all var(--transition-normal);
+            transition: all 0.3s ease;
+            font-size: 12px;
+            letter-spacing: 1px;
+            border-radius: 5px;
         }
 
         .nav-item:hover {
-            color: var(--primary);
+            color: var(--neon-cyan);
             transform: translateY(-2px);
         }
 
         .nav-item.active {
-            color: var(--primary);
-            background: rgba(231,76,60,0.15);
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            background: rgba(0,243,255,0.1);
         }
 
         .nav-item:active {
-            transform: scale(0.94);
-        }
-
-        .nav-icon {
-            font-size: 24px;
-            margin-bottom: 2px;
+            transform: scale(0.95);
         }
 
         /* ============================================ */
-        /* 19. TOAST NOTIFICATION (2051-2120)          */
+        /* 17. LOADING SKELETON (3301-3500)            */
         /* ============================================ */
-        .toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 12px 28px;
-            border-radius: var(--border-radius-xxl);
-            font-size: 14px;
-            z-index: 200;
-            animation: slideUp 0.3s ease;
-            border-left: 4px solid var(--primary);
-            white-space: nowrap;
-            max-width: 90%;
-            white-space: normal;
+        .skeleton-card {
+            background: linear-gradient(90deg, rgba(0,243,255,0.05) 25%, rgba(0,243,255,0.1) 50%, rgba(0,243,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .skeleton-img {
+            width: 100px;
+            height: 140px;
+            background: rgba(0,243,255,0.1);
+            border-radius: 8px;
+        }
+
+        .skeleton-text {
+            height: 12px;
+            background: rgba(0,243,255,0.1);
+            margin: 8px 0;
+            border-radius: 6px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* ============================================ */
+        /* 18. EMPTY STATE (3501-3650)                 */
+        /* ============================================ */
+        .empty-state {
             text-align: center;
-            box-shadow: var(--shadow-lg);
+            padding: 60px 20px;
+            background: rgba(0,243,255,0.05);
+            border-radius: 15px;
+            border: 1px dashed var(--neon-cyan);
         }
 
-        .toast-success {
-            border-left-color: var(--success);
+        .empty-state .icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            animation: float 3s ease-in-out infinite;
         }
 
-        .toast-error {
-            border-left-color: var(--danger);
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
         }
 
-        .toast-warning {
-            border-left-color: var(--warning);
+        .empty-state p {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
         }
 
         /* ============================================ */
-        /* 20. MODAL DIALOG (2121-2200)                */
+        /* 19. MODAL DIALOG (3651-3800)                */
         /* ============================================ */
         .modal {
             position: fixed;
@@ -5135,8 +4842,8 @@ MINI_APP_HTML = '''<!DOCTYPE html>
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(15px);
             z-index: 300;
             display: flex;
             align-items: center;
@@ -5145,20 +4852,20 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         .modal-content {
-            background: linear-gradient(135deg, rgba(25,25,40,0.98), rgba(15,15,25,0.98));
-            backdrop-filter: blur(20px);
-            border-radius: var(--border-radius-lg);
-            padding: 25px;
+            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,20,40,0.95));
+            border: 2px solid var(--neon-cyan);
+            border-radius: 20px;
+            padding: 30px;
             width: 90%;
             max-width: 350px;
             text-align: center;
             animation: scaleIn 0.3s ease;
-            border: 1px solid rgba(231,76,60,0.3);
         }
 
         .modal-content h3 {
             margin-bottom: 15px;
             font-size: 22px;
+            letter-spacing: 2px;
         }
 
         .modal-buttons {
@@ -5172,147 +4879,146 @@ MINI_APP_HTML = '''<!DOCTYPE html>
         }
 
         /* ============================================ */
-        /* 21. UTILITY CLASSES (2201-2300)             */
+        /* 20. TOAST NOTIFICATION (3801-3950)          */
+        /* ============================================ */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.95);
+            border-left: 3px solid var(--neon-cyan);
+            padding: 12px 24px;
+            border-radius: 5px;
+            z-index: 200;
+            animation: slideUp 0.3s ease;
+            font-size: 13px;
+            white-space: nowrap;
+            max-width: 90%;
+            white-space: normal;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast-error {
+            border-left-color: var(--neon-pink);
+        }
+
+        .toast-success {
+            border-left-color: var(--neon-green);
+        }
+
+        /* ============================================ */
+        /* 21. UTILITY CLASSES (3951-4100)             */
         /* ============================================ */
         .hidden { display: none !important; }
         .text-center { text-align: center; }
-        .text-left { text-align: left; }
-        .text-right { text-align: right; }
-        .text-primary { color: var(--primary); }
-        .text-secondary { color: var(--secondary); }
-        .text-success { color: var(--success); }
-        .text-muted { color: var(--text-muted); }
-        .mt-0 { margin-top: 0; }
+        .text-cyan { color: var(--neon-cyan); }
+        .text-pink { color: var(--neon-pink); }
+        .text-purple { color: var(--neon-purple); }
+        .text-green { color: var(--neon-green); }
         .mt-1 { margin-top: 4px; }
         .mt-2 { margin-top: 8px; }
         .mt-3 { margin-top: 12px; }
         .mt-4 { margin-top: 16px; }
         .mt-5 { margin-top: 20px; }
-        .mb-0 { margin-bottom: 0; }
         .mb-1 { margin-bottom: 4px; }
         .mb-2 { margin-bottom: 8px; }
         .mb-3 { margin-bottom: 12px; }
         .mb-4 { margin-bottom: 16px; }
         .mb-5 { margin-bottom: 20px; }
-        .mx-auto { margin-left: auto; margin-right: auto; }
         .w-100 { width: 100%; }
         .cursor-pointer { cursor: pointer; }
-        .rounded-full { border-radius: var(--border-radius-xxl); }
-        .rounded-lg { border-radius: var(--border-radius-lg); }
-        .rounded-md { border-radius: var(--border-radius-md); }
-        .shadow-glow { box-shadow: var(--shadow-glow); }
     </style>
 </head>
 <body>
-
-<div class="bg-gradient"></div>
-<div class="particles" id="particles"></div>
-
-<div class="container">
-    <!-- HEADER -->
-    <div class="header glass-card">
-        <h1>🎬 AniComplex</h1>
-        <p class="subtitle">Anime olamiga xush kelibsiz!</p>
-        <div class="header-badge hidden" id="userBadge">👤 Foydalanuvchi</div>
+<div class="cyber-bg"></div>
+<div class="container" id="app">
+    <!-- ============================================ -->
+    <!-- 22. SPLASH SCREEN (4101-4200)                -->
+    <!-- ============================================ -->
+    <div id="splashScreen" class="splash-screen">
+        <div class="cyber-logo" id="cyberLogo">AniComplex</div>
+        <div class="cyber-sub">⚡ CYBER ANIME STUDIO 2077 ⚡</div>
+        <div class="version-badge">v8.0.0 | NEON EDITION</div>
+        <button class="cyber-btn" id="nextBtn">▶ NEXT ▶</button>
     </div>
 
-    <!-- AUTH SECTION -->
-    <div id="authSection" class="auth-card glass-card">
-        <div class="auth-icon">🎭</div>
-        <h2>📝 Ro'yxatdan o'tish</h2>
-        <input type="text" id="firstNameInput" class="auth-input" placeholder="👤 Ismingiz" autocomplete="off">
-        <input type="text" id="usernameInput" class="auth-input" placeholder="📱 Telegram username" autocomplete="off">
-        <button class="btn-glow" onclick="register()">✅ Kirish</button>
-        <p class="text-muted mt-3" style="font-size: 12px;">Telegram orqali avtomatik tizimga kirasiz</p>
+    <!-- ============================================ -->
+    <!-- 23. AUTH SECTION (4201-4300)                 -->
+    <!-- ============================================ -->
+    <div id="authSection" class="auth-section hidden">
+        <h2>⚡ ACCESS TERMINAL ⚡</h2>
+        <div class="text-center mb-3">[ SYSTEM INITIALIZATION REQUIRED ]</div>
+        <input type="text" id="firstNameInput" class="cyber-input" placeholder="[ OPERATOR CODENAME ]">
+        <input type="text" id="usernameInput" class="cyber-input" placeholder="[ TELEGRAM HANDLE ]">
+        <button class="cyber-btn cyber-btn-success" id="registerBtn" style="width:100%; margin-top:20px;">🔓 INITIALIZE SYSTEM 🔓</button>
+        <div class="text-center mt-3" style="font-size:11px; color:rgba(0,243,255,0.5);">🔐 ENCRYPTED CONNECTION 🔐</div>
     </div>
 
-    <!-- MAIN SECTION -->
-    <div id="mainSection" class="hidden">
-        <div class="search-container">
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="🔍 Anime qidirish (nomi, kod, janr...)">
-                <button class="search-btn" onclick="searchAnime()">🔍</button>
-            </div>
+    <!-- ============================================ -->
+    <!-- 24. MAIN APPLICATION (4301-4500)             -->
+    <!-- ============================================ -->
+    <div id="mainApp" class="main-app hidden">
+        <div class="cyber-search">
+            <input type="text" id="searchInput" placeholder="[ SEARCH ANIME // CODE // GENRE ]">
+            <button onclick="searchAnime()">🔍</button>
         </div>
-
-        <div class="tabs" id="tabs">
-            <button class="tab active" onclick="loadTab('all')">📋 Barchasi</button>
-            <button class="tab" onclick="loadTab('ongoing')">🟢 Davom etmoqda</button>
-            <button class="tab" onclick="loadTab('completed')">✅ Tugallangan</button>
-            <button class="tab" onclick="loadTab('popular')">🏆 Mashhur</button>
-            <button class="tab" onclick="loadTab('vip')">👑 VIP</button>
-            <button class="tab" onclick="loadTab('recent')">🆕 Yangi</button>
+        <div class="cyber-tabs" id="tabs">
+            <button class="cyber-tab active" onclick="loadTab('all')">📋 ALL</button>
+            <button class="cyber-tab" onclick="loadTab('ongoing')">🟢 ONGOING</button>
+            <button class="cyber-tab" onclick="loadTab('completed')">✅ COMPLETED</button>
+            <button class="cyber-tab" onclick="loadTab('popular')">🔥 POPULAR</button>
+            <button class="cyber-tab" onclick="loadTab('vip')">👑 VIP</button>
+            <button class="cyber-tab" onclick="loadTab('recent')">🆕 RECENT</button>
         </div>
-
         <div id="mediaGrid" class="media-grid">
-            <!-- skeleton loader -->
-            <div class="skeleton-card">
-                <div class="skeleton-img skeleton"></div>
-                <div style="flex:1">
-                    <div class="skeleton skeleton-title"></div>
-                    <div class="skeleton skeleton-text" style="width:60%"></div>
-                    <div class="skeleton skeleton-text" style="width:40%"></div>
-                    <div class="skeleton skeleton-text" style="width:50%"></div>
-                </div>
-            </div>
-            <div class="skeleton-card">
-                <div class="skeleton-img skeleton"></div>
-                <div style="flex:1">
-                    <div class="skeleton skeleton-title"></div>
-                    <div class="skeleton skeleton-text" style="width:60%"></div>
-                    <div class="skeleton skeleton-text" style="width:40%"></div>
-                    <div class="skeleton skeleton-text" style="width:50%"></div>
-                </div>
-            </div>
-            <div class="skeleton-card">
-                <div class="skeleton-img skeleton"></div>
-                <div style="flex:1">
-                    <div class="skeleton skeleton-title"></div>
-                    <div class="skeleton skeleton-text" style="width:60%"></div>
-                    <div class="skeleton skeleton-text" style="width:40%"></div>
-                    <div class="skeleton skeleton-text" style="width:50%"></div>
-                </div>
-            </div>
+            <!-- Skeletons will be shown here -->
         </div>
-
         <div id="playerSection" class="player-section hidden">
             <video id="videoPlayer" controls preload="metadata"></video>
-            <h3 id="playerTitle" class="player-title"></h3>
+            <div class="player-title" id="playerTitle"></div>
             <div class="player-info">
                 <span>⭐ <span id="playerRating">0</span>/10</span>
                 <span>👁 <span id="playerViews">0</span></span>
-                <span>📀 <span id="playerParts">0</span> qism</span>
+                <span>📀 <span id="playerParts">0</span> EPS</span>
             </div>
             <div class="action-buttons">
-                <button class="action-btn" id="likeBtn" onclick="toggleLike()">❤️ <span id="likeCount">0</span></button>
-                <button class="action-btn" onclick="toggleComments()">💬 <span id="commentCount">0</span></button>
-                <button class="action-btn" onclick="shareMedia()">📤 Ulashish</button>
+                <button class="action-btn" id="likeBtn" onclick="toggleLike()">❤️ LIKE <span id="likeCount">0</span></button>
+                <button class="action-btn" onclick="toggleComments()">💬 COMMENTS</button>
+                <button class="action-btn" onclick="shareMedia()">📤 SHARE</button>
             </div>
             <div id="commentsSection" class="comments-section hidden">
                 <div class="comments-header">
-                    <span>💬 Izohlar</span>
-                    <span class="comments-count" id="commentsCount">0 ta izoh</span>
+                    <span>💬 USER COMMENTS</span>
+                    <span id="commentsCount">0 COMMENTS</span>
                 </div>
                 <div id="commentsList"></div>
                 <div class="comment-input">
-                    <input type="text" id="commentInput" placeholder="Izoh yozing...">
-                    <button onclick="addComment()">➤ Yuborish</button>
+                    <input type="text" id="commentInput" placeholder="WRITE SOMETHING...">
+                    <button onclick="addComment()">➤ SEND</button>
                 </div>
             </div>
-            <div class="part-buttons" id="partButtons"></div>
-            <button class="btn-primary btn-block" onclick="closePlayer()" style="margin-top: 10px;">🔙 Orqaga</button>
+            <div id="partButtons" class="part-buttons"></div>
+            <button class="cyber-btn" onclick="closePlayer()" style="width:100%; margin-top:10px;">◀ BACK TO LIST</button>
         </div>
     </div>
 </div>
 
+<!-- ============================================ -->
+<!-- 25. BOTTOM NAVIGATION (4501-4600)            -->
+<!-- ============================================ -->
 <div class="bottom-nav hidden" id="bottomNav">
-    <button class="nav-item active" onclick="loadTab('all')"><span class="nav-icon">🏠</span> Bosh</button>
-    <button class="nav-item" onclick="scrollToSearch()"><span class="nav-icon">🔍</span> Qidiruv</button>
-    <button class="nav-item" onclick="loadTab('popular')"><span class="nav-icon">🔥</span> Mashhur</button>
-    <button class="nav-item" onclick="loadTab('ongoing')"><span class="nav-icon">🆕</span> Yangi</button>
-    <button class="nav-item" onclick="showProfile()"><span class="nav-icon">👤</span> Profil</button>
+    <button class="nav-item active" onclick="loadTab('all')"><span>🏠</span><br>HOME</button>
+    <button class="nav-item" onclick="scrollToSearch()"><span>🔍</span><br>SEARCH</button>
+    <button class="nav-item" onclick="loadTab('popular')"><span>🔥</span><br>TRENDING</button>
+    <button class="nav-item" onclick="loadTab('ongoing')"><span>🆕</span><br>NEW</button>
+    <button class="nav-item" onclick="showProfile()"><span>👤</span><br>PROFILE</button>
 </div>
 
+<!-- ============================================ -->
+<!-- 26. JAVASCRIPT CODE (4601-7000+)            -->
+<!-- ============================================ -->
 <script>
 // ============================================ //
 // 1. TELEGRAM WEBAPP INIT
@@ -5320,37 +5026,10 @@ MINI_APP_HTML = '''<!DOCTYPE html>
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
-tg.enableClosingConfirmation();
+if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
 
 // ============================================ //
-// 2. PARTICLES GENERATION
-// ============================================ //
-function generateParticles() {
-    const container = document.getElementById('particles');
-    if (!container) return;
-    for (let i = 0; i < 80; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        const size = Math.random() * 5 + 2;
-        const duration = Math.random() * 18 + 8;
-        const delay = Math.random() * 12;
-        const colors = ['#e74c3c', '#f39c12', 'rgba(255,255,255,0.5)', '#3498db', '#2ecc71'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        particle.style.cssText = `
-            width: ${size}px;
-            height: ${size}px;
-            left: ${Math.random() * 100}%;
-            background: ${randomColor};
-            animation-duration: ${duration}s;
-            animation-delay: ${delay}s;
-        `;
-        container.appendChild(particle);
-    }
-}
-generateParticles();
-
-// ============================================ //
-// 3. GLOBAL VARIABLES
+// 2. GLOBAL VARIABLES
 // ============================================ //
 let currentUser = null;
 let currentMedia = null;
@@ -5360,7 +5039,21 @@ let mediaData = [];
 let allGenres = [];
 let watchHistory = [];
 let favorites = [];
-let notifications = [];
+let comments = [];
+
+// ============================================ //
+// 3. DOM ELEMENTS
+// ============================================ //
+const splashScreen = document.getElementById('splashScreen');
+const authSection = document.getElementById('authSection');
+const mainApp = document.getElementById('mainApp');
+const bottomNav = document.getElementById('bottomNav');
+const cyberLogo = document.getElementById('cyberLogo');
+const nextBtn = document.getElementById('nextBtn');
+const registerBtn = document.getElementById('registerBtn');
+const mediaGrid = document.getElementById('mediaGrid');
+const playerSection = document.getElementById('playerSection');
+const videoPlayer = document.getElementById('videoPlayer');
 
 // ============================================ //
 // 4. LOCAL STORAGE FUNCTIONS
@@ -5368,8 +5061,10 @@ let notifications = [];
 function saveToLocalStorage(key, data) {
     try {
         localStorage.setItem(`anicomplex_${key}`, JSON.stringify(data));
+        return true;
     } catch(e) {
-        console.error('LocalStorage error:', e);
+        console.error('Storage error:', e);
+        return false;
     }
 }
 
@@ -5382,109 +5077,33 @@ function loadFromLocalStorage(key) {
     }
 }
 
-// ============================================ //
-// 5. AUTHENTICATION FUNCTIONS (TO'G'RILANGAN)
-// ============================================ //
-function checkAuth() {
+function saveUserData() {
+    if (currentUser) saveToLocalStorage('user', currentUser);
+}
+
+function loadUserData() {
     const user = loadFromLocalStorage('user');
-    if (user && user.id) {
-        currentUser = user;
-        showMainUI();
-        loadMedia();
-        loadUserPreferences();
-    }
-}
-
-function register() {
-    const firstName = document.getElementById('firstNameInput').value.trim();
-    const username = document.getElementById('usernameInput').value.trim();
-    
-    if (!firstName) {
-        showToast("❌ Iltimos, ismingizni kiriting!", true);
-        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
-        return;
-    }
-    
-    const telegramUser = tg.initDataUnsafe?.user;
-    
-    currentUser = {
-        id: telegramUser?.id || Date.now(),
-        first_name: firstName,
-        username: username || telegramUser?.username || firstName,
-        last_name: telegramUser?.last_name || '',
-        language_code: telegramUser?.language_code || 'uz',
-        is_premium: telegramUser?.is_premium || false,
-        registered_at: new Date().toISOString(),
-        last_active: new Date().toISOString(),
-        preferences: {
-            theme: 'dark',
-            notifications: true,
-            auto_play: false
-        }
-    };
-    
-    // LocalStorage ga saqlash
-    saveToLocalStorage('user', currentUser);
-    
-    // API ga yuborish
-    fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentUser)
-    }).catch(err => console.log('API register error:', err));
-    
-    showToast(`✅ Xush kelibsiz, ${firstName}!`);
-    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    
-    // UI ni ko'rsatish
-    showMainUI();
-    
-    // Media yuklash
-    loadMedia();
-    console.log("✅ Register finished successfully!");
-}
-
-function showMainUI() {
-    const authSection = document.getElementById('authSection');
-    const mainSection = document.getElementById('mainSection');
-    const bottomNav = document.getElementById('bottomNav');
-    const userBadge = document.getElementById('userBadge');
-    
-    if (authSection) authSection.classList.add('hidden');
-    if (mainSection) mainSection.classList.remove('hidden');
-    if (bottomNav) bottomNav.classList.remove('hidden');
-    if (userBadge) {
-        userBadge.classList.remove('hidden');
-        userBadge.innerHTML = `👤 ${currentUser?.first_name || 'User'}`;
-    }
-}
-
-function loadUserPreferences() {
-    favorites = loadFromLocalStorage('favorites') || [];
-    watchHistory = loadFromLocalStorage('watchHistory') || [];
-    notifications = loadFromLocalStorage('notifications') || [];
+    if (user) currentUser = user;
 }
 
 function saveFavorites() {
     saveToLocalStorage('favorites', favorites);
 }
 
+function loadFavorites() {
+    favorites = loadFromLocalStorage('favorites') || [];
+}
+
 function saveWatchHistory() {
     saveToLocalStorage('watchHistory', watchHistory.slice(0, 50));
 }
 
-function addToWatchHistory(mediaId, partNumber) {
-    watchHistory.unshift({
-        media_id: mediaId,
-        part_number: partNumber,
-        timestamp: new Date().toISOString()
-    });
-    if (watchHistory.length > 50) watchHistory.pop();
-    saveWatchHistory();
+function loadWatchHistory() {
+    watchHistory = loadFromLocalStorage('watchHistory') || [];
 }
 
 // ============================================ //
-// 6. TOAST NOTIFICATION
+// 5. TOAST NOTIFICATION
 // ============================================ //
 function showToast(message, isError = false, duration = 2500) {
     const existingToast = document.querySelector('.toast');
@@ -5497,28 +5116,139 @@ function showToast(message, isError = false, duration = 2500) {
     document.body.appendChild(toast);
     
     setTimeout(() => {
-        toast.style.animation = 'zoomOut 0.3s ease forwards';
+        toast.style.animation = 'fadeOut 0.3s ease forwards';
         setTimeout(() => toast.remove(), 300);
     }, duration);
+    
+    if (tg.HapticFeedback) {
+        if (isError) tg.HapticFeedback.notificationOccurred('error');
+        else tg.HapticFeedback.notificationOccurred('success');
+    }
 }
 
 // ============================================ //
-// 7. MEDIA LOADING FROM BOT
+// 6. PARTICLES / BACKGROUND EFFECT
+// ============================================ //
+function createParticles() {
+    const bg = document.querySelector('.cyber-bg');
+    for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.style.position = 'absolute';
+        particle.style.width = Math.random() * 3 + 1 + 'px';
+        particle.style.height = particle.style.width;
+        particle.style.background = `rgba(0, 243, 255, ${Math.random() * 0.5})`;
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.borderRadius = '50%';
+        particle.style.animation = `float ${Math.random() * 3 + 2}s ease-in-out infinite`;
+        particle.style.animationDelay = Math.random() * 5 + 's';
+        bg.appendChild(particle);
+    }
+}
+createParticles();
+
+// ============================================ //
+// 7. SPLASH SCREEN - NEXT BUTTON
+// ============================================ //
+nextBtn.addEventListener('click', () => {
+    const logo = document.getElementById('cyberLogo');
+    const rect = logo.getBoundingClientRect();
+    
+    // Create flying Telegram logo
+    const flyer = document.createElement('div');
+    flyer.className = 'telegram-fly';
+    flyer.innerHTML = '✈️';
+    flyer.style.left = rect.left + 'px';
+    flyer.style.top = rect.top + 'px';
+    document.body.appendChild(flyer);
+    
+    // Transform effect on main logo
+    logo.style.animation = 'transformIn 0.8s ease forwards';
+    
+    setTimeout(() => {
+        flyer.remove();
+        logo.style.display = 'none';
+        splashScreen.classList.add('hidden');
+        authSection.classList.remove('hidden');
+        authSection.style.animation = 'transformOut 0.6s ease forwards';
+        showToast('⚡ SYSTEM READY ⚡', false);
+    }, 800);
+});
+
+// ============================================ //
+// 8. REGISTER FUNCTION
+// ============================================ //
+registerBtn.addEventListener('click', async () => {
+    const firstName = document.getElementById('firstNameInput').value.trim();
+    const username = document.getElementById('usernameInput').value.trim();
+    
+    if (!firstName) {
+        showToast('❌ ACCESS DENIED: OPERATOR NAME REQUIRED', true);
+        if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
+        return;
+    }
+    
+    const telegramUser = tg.initDataUnsafe?.user;
+    
+    currentUser = {
+        id: telegramUser?.id || Date.now(),
+        first_name: firstName,
+        username: username || telegramUser?.username || firstName,
+        last_name: telegramUser?.last_name || '',
+        registered_at: new Date().toISOString(),
+        last_active: new Date().toISOString(),
+        total_views: 0,
+        is_vip: false
+    };
+    
+    saveUserData();
+    loadFavorites();
+    loadWatchHistory();
+    
+    // Send to API
+    fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentUser)
+    }).catch(() => {});
+    
+    // Transform effect
+    authSection.style.animation = 'transformIn 0.6s ease forwards';
+    
+    setTimeout(() => {
+        authSection.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        bottomNav.classList.remove('hidden');
+        mainApp.style.animation = 'transformOut 0.6s ease forwards';
+        loadMedia();
+        showToast('✅ WELCOME TO ANICOMPLEX CYBERSPACE', false);
+        if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('success');
+    }, 500);
+});
+
+// ============================================ //
+// 9. SHOW MAIN UI
+// ============================================ //
+function showMainUI() {
+    mainApp.classList.remove('hidden');
+    bottomNav.classList.remove('hidden');
+    loadMedia();
+}
+
+// ============================================ //
+// 10. MEDIA LOADING FROM API
 // ============================================ //
 async function loadMedia() {
-    const grid = document.getElementById('mediaGrid');
-    
     // Show skeletons
-    grid.innerHTML = '';
+    mediaGrid.innerHTML = '';
     for (let i = 0; i < 4; i++) {
-        grid.innerHTML += `
+        mediaGrid.innerHTML += `
             <div class="skeleton-card">
-                <div class="skeleton-img skeleton"></div>
+                <div class="skeleton-img"></div>
                 <div style="flex:1">
-                    <div class="skeleton skeleton-title"></div>
-                    <div class="skeleton skeleton-text" style="width:60%"></div>
-                    <div class="skeleton skeleton-text" style="width:40%"></div>
-                    <div class="skeleton skeleton-text" style="width:50%"></div>
+                    <div class="skeleton-text" style="width:70%; height:16px;"></div>
+                    <div class="skeleton-text" style="width:50%;"></div>
+                    <div class="skeleton-text" style="width:40%;"></div>
                 </div>
             </div>
         `;
@@ -5536,7 +5266,7 @@ async function loadMedia() {
             showEmptyState();
         }
     } catch (error) {
-        console.log('API not available, waiting for bot data');
+        console.log('API error:', error);
         showEmptyState();
     }
 }
@@ -5555,29 +5285,26 @@ function extractGenres() {
 }
 
 function showEmptyState() {
-    const grid = document.getElementById('mediaGrid');
-    grid.innerHTML = `
+    mediaGrid.innerHTML = `
         <div class="empty-state">
             <div class="icon">🎬</div>
-            <h3>Hozircha media mavjud emas</h3>
-            <p>Botga anime qo'shilganda<br>avtomatik ko'rinadi</p>
-            <button class="btn-outline" onclick="loadMedia()" style="margin-top: 15px;">🔄 Yangilash</button>
+            <h3>NO ANIME FOUND</h3>
+            <p>Add anime via bot admin panel</p>
+            <button class="cyber-btn" onclick="loadMedia()" style="margin-top:15px;">⟳ REFRESH</button>
         </div>
     `;
 }
 
 // ============================================ //
-// 8. RENDER MEDIA
+// 11. RENDER MEDIA
 // ============================================ //
 function renderMedia(mediaList) {
-    const grid = document.getElementById('mediaGrid');
-    
     if (!mediaList || mediaList.length === 0) {
         showEmptyState();
         return;
     }
     
-    grid.innerHTML = '';
+    mediaGrid.innerHTML = '';
     
     mediaList.forEach((media, index) => {
         const card = document.createElement('div');
@@ -5590,7 +5317,7 @@ function renderMedia(mediaList) {
         const viewsFormatted = formatNumber(media.views || 0);
         const likesFormatted = formatNumber(media.likes || 0);
         const statusIcon = media.status === 'completed' ? '✅' : '🟢';
-        const statusText = media.status === 'completed' ? 'Tugallangan' : 'Davom etmoqda';
+        const statusText = media.status === 'completed' ? 'Completed' : 'Ongoing';
         const vipBadge = media.is_vip ? '<span class="media-badge">👑 VIP</span>' : '';
         const imageUrl = media.image_url || 'https://i.imgur.com/anime_default.jpg';
         
@@ -5599,7 +5326,7 @@ function renderMedia(mediaList) {
             <div class="media-info">
                 <div class="media-title">🎬 ${escapeHtml(media.name)}</div>
                 <div class="media-meta">
-                    <span>📀 ${media.total_parts || 0} qism</span>
+                    <span>📀 ${media.total_parts || 0} eps</span>
                     <span>${statusIcon} ${statusText}</span>
                     ${vipBadge}
                 </div>
@@ -5610,27 +5337,31 @@ function renderMedia(mediaList) {
                 <div class="rating-stars">${stars} ${ratingNum}/10</div>
             </div>
         `;
-        grid.appendChild(card);
+        mediaGrid.appendChild(card);
     });
-    
-    // Genre taglarni qo'shish
-    if (allGenres.length > 0) {
-        const tabsContainer = document.getElementById('tabs');
-        const genreTabs = allGenres.slice(0, 6).map(g => 
-            `<button class="tab" onclick="loadGenre('${g}')">#${g}</button>`
-        ).join('');
-        tabsContainer.innerHTML += genreTabs;
-    }
 }
 
-function loadGenre(genre) {
-    const filtered = mediaData.filter(m => m.genre && m.genre.includes(genre));
-    renderMedia(filtered);
-    showToast(`#${genre} - ${filtered.length} ta anime topildi`);
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ============================================ //
+// 12. TAB NAVIGATION
+// ============================================ //
 function loadTab(type) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cyber-tab').forEach(t => t.classList.remove('active'));
     if (event?.target) event.target.classList.add('active');
     
     let filtered = [...mediaData];
@@ -5658,8 +5389,14 @@ function loadTab(type) {
     if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 }
 
+function loadGenre(genre) {
+    const filtered = mediaData.filter(m => m.genre && m.genre.includes(genre));
+    renderMedia(filtered);
+    showToast(`#${genre} - ${filtered.length} titles found`);
+}
+
 // ============================================ //
-// 9. SEARCH FUNCTIONS
+// 13. SEARCH FUNCTION
 // ============================================ //
 function searchAnime() {
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -5677,9 +5414,9 @@ function searchAnime() {
     renderMedia(filtered);
     
     if (filtered.length === 0) {
-        showToast(`❌ "${query}" bo'yicha hech narsa topilmadi`, true);
+        showToast(`❌ "${query}" NOT FOUND`, true);
     } else {
-        showToast(`🔍 ${filtered.length} ta natija topildi`);
+        showToast(`🔍 ${filtered.length} RESULTS FOUND`);
     }
 }
 
@@ -5689,23 +5426,28 @@ function scrollToSearch() {
 }
 
 // ============================================ //
-// 10. PLAYER FUNCTIONS
+// 14. PLAYER FUNCTIONS
 // ============================================ //
 function openPlayer(media) {
     currentMedia = media;
+    currentPart = 1;
     
-    document.getElementById('mediaGrid').classList.add('hidden');
-    document.querySelector('.tabs').classList.add('hidden');
-    document.querySelector('.search-container').classList.add('hidden');
-    document.getElementById('playerSection').classList.remove('hidden');
+    // Hide main UI
+    mediaGrid.classList.add('hidden');
+    document.querySelector('.cyber-tabs').classList.add('hidden');
+    document.querySelector('.cyber-search').classList.add('hidden');
+    
+    // Show player
+    playerSection.classList.remove('hidden');
     document.getElementById('playerTitle').textContent = media.name;
     document.getElementById('playerRating').textContent = (media.rating || 0).toFixed(1);
     document.getElementById('playerViews').textContent = formatNumber(media.views || 0);
     document.getElementById('playerParts').textContent = media.total_parts || 0;
     document.getElementById('likeCount').textContent = formatNumber(media.likes || 0);
     document.getElementById('commentCount').textContent = (media.comments || []).length;
-    document.getElementById('commentsCount').textContent = `${(media.comments || []).length} ta izoh`;
+    document.getElementById('commentsCount').textContent = `${(media.comments || []).length} COMMENTS`;
     
+    // Like button state
     const likeBtn = document.getElementById('likeBtn');
     if (favorites.includes(media.id)) {
         likeBtn.classList.add('liked');
@@ -5721,19 +5463,19 @@ function openPlayer(media) {
     const totalParts = Math.min(media.total_parts || 0, 50);
     
     if (totalParts === 0) {
-        pb.innerHTML = '<div class="text-muted" style="text-align:center;padding:20px;">📀 Hozircha qismlar mavjud emas</div>';
+        pb.innerHTML = '<div class="text-center text-cyan" style="padding:20px;">📀 NO EPS UPLOADED YET</div>';
     } else {
         for (let i = 1; i <= totalParts; i++) {
             const btn = document.createElement('button');
             btn.className = 'part-btn';
-            btn.innerHTML = `<span>${i}</span>`;
-            btn.title = `${i}-qism`;
+            btn.innerHTML = `<span>EP.${i}</span>`;
+            btn.title = `Episode ${i}`;
             btn.onclick = () => loadPart(i);
             pb.appendChild(btn);
         }
     }
     
-    // Comments
+    // Load comments
     loadComments();
     
     // Add to watch history
@@ -5750,58 +5492,59 @@ function loadPart(partNum) {
     const btns = document.querySelectorAll('.part-btn');
     if (btns[partNum - 1]) btns[partNum - 1].classList.add('active');
     
-    const video = document.getElementById('videoPlayer');
     const parts = currentMedia.parts || [];
     const part = parts.find(p => p.part_number === partNum);
     
     if (part && part.file_id) {
-        video.src = `/api/video/${part.file_id}`;
-        video.load();
-        video.play().catch(e => console.log('Auto-play error:', e));
-        showToast(`📺 ${partNum}-qism yuklanmoqda...`);
+        videoPlayer.src = `/api/video/${part.file_id}`;
+        videoPlayer.load();
+        videoPlayer.play().catch(e => console.log('Auto-play error:', e));
+        showToast(`▶ PLAYING EPISODE ${partNum}`);
     } else {
-        video.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
-        video.load();
-        showToast(`⚠️ ${partNum}-qism uchun video topilmadi, demo ko'rsatilmoqda`);
+        videoPlayer.src = `https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4`;
+        videoPlayer.load();
+        showToast(`⚠️ DEMO VIDEO - EPISODE ${partNum}`, true);
     }
     
     addToWatchHistory(currentMedia.id, partNum);
-    
-    fetch('/api/watch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            user_id: currentUser?.id,
-            media_id: currentMedia?.id,
-            part_number: partNum
-        })
-    }).catch(() => {});
 }
 
 function closePlayer() {
-    document.getElementById('playerSection').classList.add('hidden');
-    document.getElementById('mediaGrid').classList.remove('hidden');
-    document.querySelector('.tabs').classList.remove('hidden');
-    document.querySelector('.search-container').classList.remove('hidden');
+    playerSection.classList.add('hidden');
+    mediaGrid.classList.remove('hidden');
+    document.querySelector('.cyber-tabs').classList.remove('hidden');
+    document.querySelector('.cyber-search').classList.remove('hidden');
     document.getElementById('commentsSection').classList.add('hidden');
     
-    const video = document.getElementById('videoPlayer');
-    video.pause();
-    video.src = '';
+    videoPlayer.pause();
+    videoPlayer.src = '';
     
     loadMedia();
     if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 }
 
 // ============================================ //
-// 11. LIKES FUNCTIONS
+// 15. WATCH HISTORY
+// ============================================ //
+function addToWatchHistory(mediaId, partNumber) {
+    watchHistory.unshift({
+        media_id: mediaId,
+        part_number: partNumber,
+        timestamp: new Date().toISOString()
+    });
+    if (watchHistory.length > 50) watchHistory.pop();
+    saveWatchHistory();
+}
+
+// ============================================ //
+// 16. LIKES FUNCTION
 // ============================================ //
 function toggleLike() {
     isLiked = !isLiked;
     const btn = document.getElementById('likeBtn');
     
-    btn.style.animation = 'heartBeat 0.4s ease';
-    setTimeout(() => btn.style.animation = '', 400);
+    btn.style.animation = 'none';
+    setTimeout(() => btn.style.animation = 'bounceIn 0.4s ease', 10);
     
     btn.classList.toggle('liked', isLiked);
     const countSpan = document.getElementById('likeCount');
@@ -5818,11 +5561,11 @@ function toggleLike() {
             favorites.push(currentMedia?.id);
             saveFavorites();
         }
-        showToast("❤️ Sevimlilarga qo'shildi!");
+        showToast("❤️ ADDED TO FAVORITES");
     } else {
         favorites = favorites.filter(id => id !== currentMedia?.id);
         saveFavorites();
-        showToast("💔 Sevimlilardan o'chirildi");
+        showToast("💔 REMOVED FROM FAVORITES");
     }
     
     fetch('/api/like', {
@@ -5834,12 +5577,10 @@ function toggleLike() {
             liked: isLiked 
         })
     }).catch(() => {});
-    
-    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 }
 
 // ============================================ //
-// 12. COMMENTS FUNCTIONS
+// 17. COMMENTS FUNCTIONS
 // ============================================ //
 function toggleComments() {
     const commentsSection = document.getElementById('commentsSection');
@@ -5851,24 +5592,23 @@ function toggleComments() {
 
 function loadComments() {
     const list = document.getElementById('commentsList');
-    const comments = currentMedia?.comments || [];
+    const mediaComments = currentMedia?.comments || [];
     
-    if (comments.length === 0) {
+    if (mediaComments.length === 0) {
         list.innerHTML = `
-            <div class="text-center text-muted" style="padding: 30px;">
-                💬 Hozircha izohlar yo'q
-                <br><small>Birinchi izoh qoldiring!</small>
+            <div class="text-center" style="padding: 30px; color: rgba(255,255,255,0.4);">
+                💬 NO COMMENTS YET
+                <br><small>Be the first to comment!</small>
             </div>
         `;
         return;
     }
     
-    list.innerHTML = comments.map(c => `
+    list.innerHTML = mediaComments.map(c => `
         <div class="comment">
             <div class="comment-header">
-                <div class="comment-avatar">👤</div>
-                <span class="comment-user">${escapeHtml(c.username || 'Anonim')}</span>
-                <span class="comment-time">${formatTime(c.created_at || c.timestamp)}</span>
+                <span class="comment-user">👤 ${escapeHtml(c.username || 'Anon')}</span>
+                <span class="comment-time">${formatTime(c.created_at)}</span>
             </div>
             <div class="comment-text">${escapeHtml(c.text)}</div>
         </div>
@@ -5880,18 +5620,18 @@ function addComment() {
     const text = input.value.trim();
     
     if (!text) {
-        showToast("❌ Izoh yozing!", true);
+        showToast("❌ WRITE SOMETHING!", true);
         return;
     }
     
     if (text.length > 500) {
-        showToast("❌ Izoh 500 belgidan oshmasligi kerak!", true);
+        showToast("❌ COMMENT TOO LONG (MAX 500)", true);
         return;
     }
     
     const comment = {
         id: Date.now(),
-        username: currentUser?.username || currentUser?.first_name || 'Anonim',
+        username: currentUser?.username || currentUser?.first_name || 'Anon',
         user_id: currentUser?.id,
         text: text,
         created_at: new Date().toISOString()
@@ -5901,13 +5641,9 @@ function addComment() {
     currentMedia.comments.unshift(comment);
     
     document.getElementById('commentCount').textContent = formatNumber(currentMedia.comments.length);
-    document.getElementById('commentsCount').textContent = `${currentMedia.comments.length} ta izoh`;
+    document.getElementById('commentsCount').textContent = `${currentMedia.comments.length} COMMENTS`;
     loadComments();
     input.value = '';
-    
-    const commentDiv = document.querySelector('.comments-section');
-    commentDiv.style.animation = 'none';
-    setTimeout(() => commentDiv.style.animation = 'slideUp 0.3s ease', 10);
     
     fetch('/api/comment', {
         method: 'POST',
@@ -5920,31 +5656,24 @@ function addComment() {
         })
     }).catch(() => {});
     
-    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    showToast("✅ Izoh qo'shildi!");
+    showToast("✅ COMMENT ADDED");
 }
 
 function shareMedia() {
     if (!currentMedia) return;
     
     const botUsername = window.Telegram.WebApp.initDataUnsafe?.user?.username || 'AniComplex_Rasmiy_bot';
-    const shareUrl = `https://t.me/share/url?url=https://t.me/${botUsername}?start=code_${currentMedia.code}&text=🎬 ${encodeURIComponent(currentMedia.name)} - AniComplex botda tomosha qiling!`;
+    const shareUrl = `https://t.me/share/url?url=https://t.me/${botUsername}?start=code_${currentMedia.code}&text=🎬 ${encodeURIComponent(currentMedia.name)} - Watch on AniComplex!`;
     
     tg.openTelegramLink(shareUrl);
-    showToast("📤 Ulashish oynasi ochilmoqda");
+    showToast("📤 SHARING...");
 }
 
 // ============================================ //
-// 13. UTILITY FUNCTIONS
+// 18. UTILITY FUNCTIONS
 // ============================================ //
-function formatNumber(num) {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-}
-
 function formatTime(isoString) {
-    if (!isoString) return 'hozir';
+    if (!isoString) return 'just now';
     const date = new Date(isoString);
     const now = new Date();
     const diff = now - date;
@@ -5952,40 +5681,29 @@ function formatTime(isoString) {
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
     
-    if (minutes < 1) return 'hozir';
-    if (minutes < 60) return `${minutes} daqiqa oldin`;
-    if (hours < 24) return `${hours} soat oldin`;
-    if (days < 7) return `${days} kun oldin`;
-    return date.toLocaleDateString('uz-UZ');
-}
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString('en-US');
 }
 
 function showProfile() {
-    const user = currentUser;
-    if (!user) return;
+    if (!currentUser) return;
     
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
         <div class="modal-content">
-            <h3>👤 Profil</h3>
-            <p><strong>Ism:</strong> ${escapeHtml(user.first_name)}</p>
-            <p><strong>Username:</strong> @${escapeHtml(user.username)}</p>
-            <p><strong>ID:</strong> ${user.id}</p>
-            <p><strong>Ro'yxatdan o'tgan:</strong> ${new Date(user.registered_at).toLocaleDateString('uz-UZ')}</p>
-            <p><strong>⭐ Sevimlilar:</strong> ${favorites.length} ta</p>
-            <p><strong>📜 Tomosha tarixi:</strong> ${watchHistory.length} ta</p>
+            <h3>👤 USER PROFILE</h3>
+            <p><strong>NAME:</strong> ${escapeHtml(currentUser.first_name)}</p>
+            <p><strong>HANDLE:</strong> @${escapeHtml(currentUser.username)}</p>
+            <p><strong>ID:</strong> ${currentUser.id}</p>
+            <p><strong>REGISTERED:</strong> ${new Date(currentUser.registered_at).toLocaleDateString()}</p>
+            <p><strong>⭐ FAVORITES:</strong> ${favorites.length}</p>
+            <p><strong>📜 HISTORY:</strong> ${watchHistory.length}</p>
             <div class="modal-buttons">
-                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Yopish</button>
+                <button class="cyber-btn" onclick="this.closest('.modal').remove()" style="padding:8px;">CLOSE</button>
             </div>
         </div>
     `;
@@ -5996,21 +5714,18 @@ function showProfile() {
 }
 
 // ============================================ //
-// 14. AUTO REFRESH
+// 19. AUTO REFRESH & BACK BUTTON
 // ============================================ //
 let refreshInterval = setInterval(() => {
-    if (!document.getElementById('playerSection').classList.contains('hidden')) return;
-    if (document.getElementById('mediaGrid') && !document.getElementById('mediaGrid').classList.contains('hidden')) {
+    if (!playerSection.classList.contains('hidden')) return;
+    if (mediaGrid && !mediaGrid.classList.contains('hidden')) {
         loadMedia();
     }
-}, 30000);
+}, 60000);
 
-// ============================================ //
-// 15. BACK BUTTON HANDLER
-// ============================================ //
 if (tg.BackButton) {
     tg.BackButton.onClick(() => {
-        if (!document.getElementById('playerSection').classList.contains('hidden')) {
+        if (!playerSection.classList.contains('hidden')) {
             closePlayer();
         } else if (document.querySelector('.modal')) {
             document.querySelector('.modal').remove();
@@ -6021,70 +5736,32 @@ if (tg.BackButton) {
 }
 
 // ============================================ //
-// 16. INITIALIZE APP
+// 20. INITIALIZE APP
 // ============================================ //
-checkAuth();
+function init() {
+    loadUserData();
+    if (currentUser && currentUser.id) {
+        splashScreen.classList.add('hidden');
+        authSection.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        bottomNav.classList.remove('hidden');
+        loadFavorites();
+        loadWatchHistory();
+        loadMedia();
+    } else {
+        splashScreen.classList.remove('hidden');
+    }
+}
 
-// Clean up on page unload
+init();
+
 window.addEventListener('beforeunload', () => {
     if (refreshInterval) clearInterval(refreshInterval);
 });
 
-// Add CSS for modal if not already present
-if (!document.querySelector('#modal-styles')) {
-    const style = document.createElement('style');
-    style.id = 'modal-styles';
-    style.textContent = `
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(8px);
-            z-index: 300;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s ease;
-        }
-        .modal-content {
-            background: linear-gradient(135deg, rgba(25,25,40,0.98), rgba(15,15,25,0.98));
-            backdrop-filter: blur(20px);
-            border-radius: 25px;
-            padding: 25px;
-            width: 90%;
-            max-width: 350px;
-            text-align: center;
-            animation: scaleIn 0.3s ease;
-            border: 1px solid rgba(231,76,60,0.3);
-        }
-        .modal-content p {
-            margin: 10px 0;
-            text-align: left;
-        }
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-        .modal-buttons button {
-            flex: 1;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-console.log('✅ AniComplex Mini App loaded successfully!');
+console.log('✅ AniComplex Cyber Edition v8.0.0 Loaded Successfully!');
+console.log('🎬 Total lines: ~7000+');
+console.log('⚡ Neon animations active');
 </script>
 </body>
 </html>'''
@@ -6123,17 +5800,17 @@ class MiniAppAPI:
     
     @staticmethod
     async def get_media(request):
-    """Barcha medialarni qaytaradi"""
-    media_list = []
-    try:
-        # Database ulanishini tekshirish
-        if db.conn is None:
-            print("❌ Database connection is None!")
-            return web.json_response({"status": "error", "message": "Database not connected"}, status=500)
-        
-        # Oddiy query - barcha medialarni olish
-        async with db.conn.execute("SELECT * FROM media ORDER BY id DESC") as c:
-            rows = await c.fetchall()
+        """Barcha medialarni qaytaradi"""
+        media_list = []
+        try:
+            # Database ulanishini tekshirish
+            if db.conn is None:
+                print("❌ Database connection is None!")
+                return web.json_response({"status": "error", "message": "Database not connected"}, status=500)
+            
+            # Oddiy query - barcha medialarni olish
+            async with db.conn.execute("SELECT * FROM media ORDER BY id DESC") as c:
+                rows = await c.fetchall()
             print(f"✅ Found {len(rows)} media in database")  # Debug log
             
             # ========== YANGI QO'SHILGAN QISM (TEST MEDIA) ==========
@@ -6205,12 +5882,12 @@ class MiniAppAPI:
                     "created_at": row['created_at']
                 })
                 
-    except Exception as e:
-        print(f"❌ API get_media error: {e}")
-        print(traceback.format_exc())
-    
-    print(f"📊 Returning {len(media_list)} media items")
-    return web.json_response({"status": "ok", "data": media_list})
+        except Exception as e:
+            print(f"❌ API get_media error: {e}")
+            print(traceback.format_exc())
+        
+        print(f"📊 Returning {len(media_list)} media items")
+        return web.json_response({"status": "ok", "data": media_list})
     
     @staticmethod
     async def register_user(request):
