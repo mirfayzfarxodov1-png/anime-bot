@@ -5991,12 +5991,18 @@ async def handle_root(request):
     return web.Response(text=MINI_APP_HTML, content_type='text/html')
 
 
-# ================= API SERVER YARATISH =================
+# ================= API SERVER YARATISH (TO'LIQ TUZATILGAN) =================
+# ROOT uchun HTML qaytaruvchi funksiya
+async def handle_root_html(request):
+    """Asosiy Mini App HTML sahifasini qaytaradi"""
+    return web.Response(text=MINI_APP_HTML, content_type='text/html; charset=utf-8')
+
+# API ilovasini yaratish
 api_app = web.Application()
 
-# ROOT manzili
-api_app.router.add_get('/', handle_root)
-api_app.router.add_get('/index.html', handle_root)
+# ROOT manzillari - HTML sahifani qaytaradi
+api_app.router.add_get('/', handle_root_html)
+api_app.router.add_get('/index.html', handle_root_html)
 
 # API manzillar
 api_app.router.add_get('/api/media', MiniAppAPI.get_media)
@@ -6005,17 +6011,19 @@ api_app.router.add_post('/api/register', MiniAppAPI.register_user)
 api_app.router.add_post('/api/like', MiniAppAPI.add_like)
 api_app.router.add_post('/api/comment', MiniAppAPI.add_comment)
 
-# ================= YANGI VIDEO ROUTE =================
+# Video route
 api_app.router.add_get('/api/video/{file_id}', MiniAppAPI.get_video)
 
 
 async def start_api_server():
+    """API serverni ishga tushirish"""
     runner = web.AppRunner(api_app)
     await runner.setup()
-    port = int(os.environ.get('PORT', 8080))  # Render PORT ni o'qiydi
+    port = int(os.environ.get('PORT', 8080))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     print(f"✅ MiniApp API server running on port {port}")
+    print(f"🌐 HTML page available at: http://0.0.0.0:{port}/")
 
 # ================= MAIN =================
 async def main():
